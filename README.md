@@ -11,10 +11,12 @@ sources.
 - Patched dependencies: `browserslist` 4.28.8 and `sanitize-html` 2.17.7.
 - Platform: `linux/amd64`.
 
-The preparation script verifies the exact base revision and SHA-256 hashes of
-both manifests before and after replacement. The workflow audits the deployed
-web workspace, builds with the upstream Dockerfile, and smoke-tests the Hermes
-version, patched packages, and image labels before publishing.
+The tracked `security-manifests.patch` is the exact two-file diff between the
+base and security revisions. The preparation script verifies its SHA-256 plus
+the exact base revision and both manifest hashes before and after applying it.
+The workflow audits the deployed web workspace, builds with the upstream
+Dockerfile, and smoke-tests the Hermes version, patched packages, and image
+labels before publishing.
 
 The published image includes an SBOM and minimal BuildKit provenance. Tags are
 discovery metadata only; consumers should pin the immutable manifest digest.

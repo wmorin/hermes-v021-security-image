@@ -39,23 +39,8 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Check out exact security manifests
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: NousResearch/hermes-agent
-          ref: ${{ env.SECURITY_REVISION }}
-          path: hermes-security
-          fetch-depth: 1
-          persist-credentials: false
-          sparse-checkout: |
-            /package.json
-            /package-lock.json
-          sparse-checkout-cone-mode: false
-
       - name: Materialize and verify the narrow security patch
         working-directory: hermes-agent
-        env:
-          SECURITY_SOURCE_DIR: ${{ github.workspace }}/hermes-security
         run: ../build-policy/prepare-source.sh
 
       - name: Audit the deployed web workspace
@@ -125,23 +110,8 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Check out exact security manifests
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          repository: NousResearch/hermes-agent
-          ref: ${{ env.SECURITY_REVISION }}
-          path: hermes-security
-          fetch-depth: 1
-          persist-credentials: false
-          sparse-checkout: |
-            /package.json
-            /package-lock.json
-          sparse-checkout-cone-mode: false
-
       - name: Materialize and verify the narrow security patch
         working-directory: hermes-agent
-        env:
-          SECURITY_SOURCE_DIR: ${{ github.workspace }}/hermes-security
         run: ../build-policy/prepare-source.sh
 
       - name: Audit the deployed web workspace
