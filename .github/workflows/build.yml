@@ -1,0 +1,245 @@
+name: Build Hermes v0.21.0 security image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: hermes-v021-security-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/wmorin/hermes-v021-security-image
+  IMAGE_TAG: v0.21.0-security.1
+  UPSTREAM_SOURCE: https://github.com/NousResearch/hermes-agent
+  UPSTREAM_REVISION: 29112bef099274229cadff79cdff7bf7b99c4b77
+  SECURITY_REVISION: 51e2cb22b07f302827fdf3fd82f1d8c710aedfe3
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Check out public build policy
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: build-policy
+          persist-credentials: false
+
+      - name: Check out exact Hermes release source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: NousResearch/hermes-agent
+          ref: 29112bef099274229cadff79cdff7bf7b99c4b77
+          path: hermes-agent
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check out exact security manifests
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: NousResearch/hermes-agent
+          ref: ${{ env.SECURITY_REVISION }}
+          path: hermes-security
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            /package.json
+            /package-lock.json
+          sparse-checkout-cone-mode: false
+
+      - name: Materialize and verify the narrow security patch
+        working-directory: hermes-agent
+        env:
+          SECURITY_SOURCE_DIR: ${{ github.workspace }}/hermes-security
+        run: ../build-policy/prepare-source.sh
+
+      - name: Audit the deployed web workspace
+        working-directory: hermes-agent
+        run: npm audit --workspace web --omit=optional --audit-level=moderate
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build exact linux/amd64 image
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: hermes-agent
+          file: hermes-agent/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: hermes-v021-security:test
+          build-args: |
+            HERMES_GIT_SHA=${{ env.UPSTREAM_REVISION }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/wmorin/hermes-v021-security-image
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.IMAGE_TAG }}
+            io.wmorin.hermes.upstream-source=${{ env.UPSTREAM_SOURCE }}
+            io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
+            io.wmorin.hermes.security-revision=${{ env.SECURITY_REVISION }}
+          cache-from: type=gha,scope=hermes-v021-security-amd64
+          cache-to: type=gha,mode=max,scope=hermes-v021-security-amd64
+
+      - name: Smoke-test image identity and patched packages
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint /opt/hermes/.venv/bin/hermes \
+            hermes-v021-security:test --version | grep -F 'Hermes Agent v0.21.0 (2026.8.31)'
+          docker run --rm --entrypoint sh hermes-v021-security:test -c \
+            'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 --all'
+          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
+          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
+          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
+          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
+          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-revision"}}')" = "${SECURITY_REVISION}"
+
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Check out public build policy
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          path: build-policy
+          persist-credentials: false
+
+      - name: Check out exact Hermes release source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: NousResearch/hermes-agent
+          ref: 29112bef099274229cadff79cdff7bf7b99c4b77
+          path: hermes-agent
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check out exact security manifests
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: NousResearch/hermes-agent
+          ref: ${{ env.SECURITY_REVISION }}
+          path: hermes-security
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            /package.json
+            /package-lock.json
+          sparse-checkout-cone-mode: false
+
+      - name: Materialize and verify the narrow security patch
+        working-directory: hermes-agent
+        env:
+          SECURITY_SOURCE_DIR: ${{ github.workspace }}/hermes-security
+        run: ../build-policy/prepare-source.sh
+
+      - name: Audit the deployed web workspace
+        working-directory: hermes-agent
+        run: npm audit --workspace web --omit=optional --audit-level=moderate
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and publish exact linux/amd64 image
+        id: build
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: hermes-agent
+          file: hermes-agent/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          build-args: |
+            HERMES_GIT_SHA=${{ env.UPSTREAM_REVISION }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/wmorin/hermes-v021-security-image
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.IMAGE_TAG }}
+            io.wmorin.hermes.upstream-source=${{ env.UPSTREAM_SOURCE }}
+            io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
+            io.wmorin.hermes.security-revision=${{ env.SECURITY_REVISION }}
+          cache-from: type=gha,scope=hermes-v021-security-amd64
+          cache-to: type=gha,mode=max,scope=hermes-v021-security-amd64
+          provenance: mode=min
+          sbom: true
+
+      - name: Verify the exact published digest
+        env:
+          PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker pull "${PUBLISHED_IMAGE}"
+          docker run --rm --entrypoint /opt/hermes/.venv/bin/hermes \
+            "${PUBLISHED_IMAGE}" --version | grep -F 'Hermes Agent v0.21.0 (2026.8.31)'
+          docker run --rm --entrypoint sh "${PUBLISHED_IMAGE}" -c \
+            'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 --all'
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "${IMAGE_TAG}"
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-revision"}}')" = "${SECURITY_REVISION}"
+
+      - name: Verify minimal provenance and public SBOM
+        env:
+          PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          provenance_file="$(mktemp)"
+          sbom_file="$(mktemp)"
+          email_file="$(mktemp)"
+          trap 'unlink "${provenance_file}" "${sbom_file}" "${email_file}" 2>/dev/null || true' EXIT
+
+          docker buildx imagetools inspect "${PUBLISHED_IMAGE}" \
+            --format '{{json .Provenance}}' >"${provenance_file}"
+          docker buildx imagetools inspect "${PUBLISHED_IMAGE}" \
+            --format '{{json .SBOM}}' >"${sbom_file}"
+
+          jq -e . "${provenance_file}" >/dev/null
+          jq -e . "${sbom_file}" >/dev/null
+          if rg -qi 'github_event_payload' "${provenance_file}"; then
+            echo 'Unexpected event payload in minimal provenance' >&2
+            exit 1
+          fi
+          if rg -qF '/Users/' "${provenance_file}" "${sbom_file}"; then
+            echo 'Local path in public attestation' >&2
+            exit 1
+          fi
+          rg -io '[[:alnum:]._%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}' \
+            "${provenance_file}" | sed 's/^[^:]*://' | sort -u >"${email_file}" || true
+          if rg -qv '^git@github\.com$' "${email_file}"; then
+            echo 'Unexpected email address in public provenance' >&2
+            exit 1
+          fi
+          rg -F 'https://github.com/wmorin/hermes-v021-security-image/actions/runs/' \
+            "${provenance_file}" >/dev/null
+          rg -F 'https://github.com/NousResearch/hermes-agent' \
+            "${provenance_file}" >/dev/null
+          rg -F "${UPSTREAM_REVISION}" "${provenance_file}" >/dev/null
+          jq -e '[.. | objects | select(
+            .name? == "browserslist" and .versionInfo? == "4.28.8"
+          )] | length > 0' "${sbom_file}" >/dev/null
+          jq -e '[.. | objects | select(
+            .name? == "sanitize-html" and .versionInfo? == "2.17.7"
+          )] | length > 0' "${sbom_file}" >/dev/null
+
+      - name: Report immutable identity
+        run: printf 'image=%s@%s\n' "${IMAGE_NAME}" "${{ steps.build.outputs.digest }}"
