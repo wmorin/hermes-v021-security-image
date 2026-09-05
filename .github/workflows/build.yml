@@ -185,25 +185,25 @@ jobs:
 
           jq -e . "${provenance_file}" >/dev/null
           jq -e . "${sbom_file}" >/dev/null
-          if rg -qi 'github_event_payload' "${provenance_file}"; then
+          if grep -qi 'github_event_payload' "${provenance_file}"; then
             echo 'Unexpected event payload in minimal provenance' >&2
             exit 1
           fi
-          if rg -qF '/Users/' "${provenance_file}" "${sbom_file}"; then
+          if grep -qF '/Users/' "${provenance_file}" "${sbom_file}"; then
             echo 'Local path in public attestation' >&2
             exit 1
           fi
-          rg -io '[[:alnum:]._%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}' \
-            "${provenance_file}" | sed 's/^[^:]*://' | sort -u >"${email_file}" || true
-          if rg -qv '^git@github\.com$' "${email_file}"; then
+          grep -Eio '[[:alnum:]._%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}' \
+            "${provenance_file}" | sort -u >"${email_file}" || true
+          if grep -qv '^git@github\.com$' "${email_file}"; then
             echo 'Unexpected email address in public provenance' >&2
             exit 1
           fi
-          rg -F 'https://github.com/wmorin/hermes-v021-security-image/actions/runs/' \
+          grep -F 'https://github.com/wmorin/hermes-v021-security-image/actions/runs/' \
             "${provenance_file}" >/dev/null
-          rg -F 'https://github.com/NousResearch/hermes-agent' \
+          grep -F 'https://github.com/NousResearch/hermes-agent' \
             "${provenance_file}" >/dev/null
-          rg -F "${UPSTREAM_REVISION}" "${provenance_file}" >/dev/null
+          grep -F "${UPSTREAM_REVISION}" "${provenance_file}" >/dev/null
           jq -e '[.. | objects | select(
             .name? == "browserslist" and .versionInfo? == "4.28.8"
           )] | length > 0' "${sbom_file}" >/dev/null
