@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  DOCKER_BUILD_RECORD_UPLOAD: false
   IMAGE_NAME: ghcr.io/wmorin/hermes-v021-security-image
   IMAGE_TAG: v0.21.0-security.1
   UPSTREAM_SOURCE: https://github.com/NousResearch/hermes-agent
