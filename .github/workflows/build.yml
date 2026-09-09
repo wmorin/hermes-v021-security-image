@@ -13,10 +13,11 @@ concurrency:
 env:
   DOCKER_BUILD_RECORD_UPLOAD: false
   IMAGE_NAME: ghcr.io/wmorin/hermes-v021-security-image
-  IMAGE_TAG: v0.21.0-security.1
+  IMAGE_TAG: v0.21.0-security.2
   UPSTREAM_SOURCE: https://github.com/NousResearch/hermes-agent
   UPSTREAM_REVISION: 29112bef099274229cadff79cdff7bf7b99c4b77
-  SECURITY_REVISION: 51e2cb22b07f302827fdf3fd82f1d8c710aedfe3
+  SECURITY_BASELINE_REVISION: 51e2cb22b07f302827fdf3fd82f1d8c710aedfe3
+  SECURITY_PATCH_SHA256: eb40360f786d746fe378ce230d8ab914b8246bdf497f69f4857a99a695081ca5
 
 jobs:
   build-test:
@@ -44,9 +45,12 @@ jobs:
         working-directory: hermes-agent
         run: ../build-policy/prepare-source.sh
 
-      - name: Audit the deployed web workspace
+      - name: Audit deployed dependency scopes
         working-directory: hermes-agent
-        run: npm audit --workspace web --omit=optional --audit-level=moderate
+        run: |
+          npm audit --workspaces=false --audit-level=moderate
+          npm audit --workspace web --audit-level=moderate
+          npm audit --workspace ui-tui --audit-level=moderate
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -68,7 +72,8 @@ jobs:
             org.opencontainers.image.version=${{ env.IMAGE_TAG }}
             io.wmorin.hermes.upstream-source=${{ env.UPSTREAM_SOURCE }}
             io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
-            io.wmorin.hermes.security-revision=${{ env.SECURITY_REVISION }}
+            io.wmorin.hermes.security-baseline-revision=${{ env.SECURITY_BASELINE_REVISION }}
+            io.wmorin.hermes.security-patch-sha256=${{ env.SECURITY_PATCH_SHA256 }}
           cache-from: type=gha,scope=hermes-v021-security-amd64
           cache-to: type=gha,mode=max,scope=hermes-v021-security-amd64
 
@@ -78,12 +83,13 @@ jobs:
           docker run --rm --entrypoint /opt/hermes/.venv/bin/hermes \
             hermes-v021-security:test --version | grep -F 'Hermes Agent v0.21.0 (2026.8.31)'
           docker run --rm --entrypoint sh hermes-v021-security:test -c \
-            'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 --all'
+            'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 vitest@4.1.11 @vitest/mocker@4.1.11 colord@2.9.4 --all'
           test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
           test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
           test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
           test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
-          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-revision"}}')" = "${SECURITY_REVISION}"
+          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-baseline-revision"}}')" = "${SECURITY_BASELINE_REVISION}"
+          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
 
   publish:
     if: github.ref == 'refs/heads/main'
@@ -115,9 +121,12 @@ jobs:
         working-directory: hermes-agent
         run: ../build-policy/prepare-source.sh
 
-      - name: Audit the deployed web workspace
+      - name: Audit deployed dependency scopes
         working-directory: hermes-agent
-        run: npm audit --workspace web --omit=optional --audit-level=moderate
+        run: |
+          npm audit --workspaces=false --audit-level=moderate
+          npm audit --workspace web --audit-level=moderate
+          npm audit --workspace ui-tui --audit-level=moderate
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -149,7 +158,8 @@ jobs:
             org.opencontainers.image.version=${{ env.IMAGE_TAG }}
             io.wmorin.hermes.upstream-source=${{ env.UPSTREAM_SOURCE }}
             io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
-            io.wmorin.hermes.security-revision=${{ env.SECURITY_REVISION }}
+            io.wmorin.hermes.security-baseline-revision=${{ env.SECURITY_BASELINE_REVISION }}
+            io.wmorin.hermes.security-patch-sha256=${{ env.SECURITY_PATCH_SHA256 }}
           cache-from: type=gha,scope=hermes-v021-security-amd64
           cache-to: type=gha,mode=max,scope=hermes-v021-security-amd64
           provenance: mode=min
@@ -164,13 +174,14 @@ jobs:
           docker run --rm --entrypoint /opt/hermes/.venv/bin/hermes \
             "${PUBLISHED_IMAGE}" --version | grep -F 'Hermes Agent v0.21.0 (2026.8.31)'
           docker run --rm --entrypoint sh "${PUBLISHED_IMAGE}" -c \
-            'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 --all'
+            'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 vitest@4.1.11 @vitest/mocker@4.1.11 colord@2.9.4 --all'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "${IMAGE_TAG}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
-          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-revision"}}')" = "${SECURITY_REVISION}"
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-baseline-revision"}}')" = "${SECURITY_BASELINE_REVISION}"
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
 
       - name: Verify minimal provenance and public SBOM
         env:
@@ -213,6 +224,15 @@ jobs:
           )] | length > 0' "${sbom_file}" >/dev/null
           jq -e '[.. | objects | select(
             .name? == "sanitize-html" and .versionInfo? == "2.17.7"
+          )] | length > 0' "${sbom_file}" >/dev/null
+          jq -e '[.. | objects | select(
+            .name? == "vitest" and .versionInfo? == "4.1.11"
+          )] | length > 0' "${sbom_file}" >/dev/null
+          jq -e '[.. | objects | select(
+            .name? == "@vitest/mocker" and .versionInfo? == "4.1.11"
+          )] | length > 0' "${sbom_file}" >/dev/null
+          jq -e '[.. | objects | select(
+            .name? == "colord" and .versionInfo? == "2.9.4"
           )] | length > 0' "${sbom_file}" >/dev/null
 
       - name: Report immutable identity
