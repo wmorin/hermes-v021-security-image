@@ -1,8 +1,8 @@
 diff --git a/apps/desktop/package.json b/apps/desktop/package.json
-index 95837f12e3..567277b2d7 100644
+index b21be619de..e7c437a6c1 100644
 --- a/apps/desktop/package.json
 +++ b/apps/desktop/package.json
-@@ -181,7 +181,7 @@
+@@ -184,7 +184,7 @@
      "tsx": "4.23.1",
      "typescript": "6.0.3",
      "vite": "8.2.0",
@@ -12,10 +12,19 @@ index 95837f12e3..567277b2d7 100644
    },
    "build": {
 diff --git a/package-lock.json b/package-lock.json
-index 5e1f45ced2..5927ac7845 100644
+index eaf154d450..76d97e5297 100644
 --- a/package-lock.json
 +++ b/package-lock.json
-@@ -167,7 +167,7 @@
+@@ -31,7 +31,7 @@
+     },
+     "apps/bootstrap-installer": {
+       "name": "@hermes/bootstrap-installer",
+-      "version": "0.0.1",
++      "version": "0.21.1",
+       "dependencies": {
+         "@nous-research/ui": "0.18.2",
+         "@tailwindcss/typography": "0.5.20",
+@@ -169,7 +169,7 @@
          "tsx": "4.23.1",
          "typescript": "6.0.3",
          "vite": "8.2.0",
@@ -24,7 +33,7 @@ index 5e1f45ced2..5927ac7845 100644
          "wait-on": "9.0.10"
        },
        "engines": {
-@@ -2137,7 +2137,6 @@
+@@ -2139,7 +2139,6 @@
        "os": [
          "aix"
        ],
@@ -32,7 +41,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2154,7 +2153,6 @@
+@@ -2156,7 +2155,6 @@
        "os": [
          "android"
        ],
@@ -40,7 +49,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2171,7 +2169,6 @@
+@@ -2173,7 +2171,6 @@
        "os": [
          "android"
        ],
@@ -48,7 +57,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2188,7 +2185,6 @@
+@@ -2190,7 +2187,6 @@
        "os": [
          "android"
        ],
@@ -56,7 +65,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2205,7 +2201,6 @@
+@@ -2207,7 +2203,6 @@
        "os": [
          "darwin"
        ],
@@ -64,7 +73,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2222,7 +2217,6 @@
+@@ -2224,7 +2219,6 @@
        "os": [
          "darwin"
        ],
@@ -72,7 +81,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2239,7 +2233,6 @@
+@@ -2241,7 +2235,6 @@
        "os": [
          "freebsd"
        ],
@@ -80,7 +89,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2256,7 +2249,6 @@
+@@ -2258,7 +2251,6 @@
        "os": [
          "freebsd"
        ],
@@ -88,7 +97,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2273,7 +2265,6 @@
+@@ -2275,7 +2267,6 @@
        "os": [
          "linux"
        ],
@@ -96,7 +105,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2290,7 +2281,6 @@
+@@ -2292,7 +2283,6 @@
        "os": [
          "linux"
        ],
@@ -104,7 +113,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2307,7 +2297,6 @@
+@@ -2309,7 +2299,6 @@
        "os": [
          "linux"
        ],
@@ -112,7 +121,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2324,7 +2313,6 @@
+@@ -2326,7 +2315,6 @@
        "os": [
          "linux"
        ],
@@ -120,7 +129,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2341,7 +2329,6 @@
+@@ -2343,7 +2331,6 @@
        "os": [
          "linux"
        ],
@@ -128,7 +137,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2358,7 +2345,6 @@
+@@ -2360,7 +2347,6 @@
        "os": [
          "linux"
        ],
@@ -136,7 +145,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2375,7 +2361,6 @@
+@@ -2377,7 +2363,6 @@
        "os": [
          "linux"
        ],
@@ -144,7 +153,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2392,7 +2377,6 @@
+@@ -2394,7 +2379,6 @@
        "os": [
          "linux"
        ],
@@ -152,7 +161,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2409,7 +2393,6 @@
+@@ -2411,7 +2395,6 @@
        "os": [
          "linux"
        ],
@@ -160,7 +169,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2426,7 +2409,6 @@
+@@ -2428,7 +2411,6 @@
        "os": [
          "netbsd"
        ],
@@ -168,7 +177,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2443,7 +2425,6 @@
+@@ -2445,7 +2427,6 @@
        "os": [
          "netbsd"
        ],
@@ -176,7 +185,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2460,7 +2441,6 @@
+@@ -2462,7 +2443,6 @@
        "os": [
          "openbsd"
        ],
@@ -184,7 +193,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2477,7 +2457,6 @@
+@@ -2479,7 +2459,6 @@
        "os": [
          "openbsd"
        ],
@@ -192,7 +201,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2494,7 +2473,6 @@
+@@ -2496,7 +2475,6 @@
        "os": [
          "openharmony"
        ],
@@ -200,7 +209,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2511,7 +2489,6 @@
+@@ -2513,7 +2491,6 @@
        "os": [
          "sunos"
        ],
@@ -208,7 +217,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2528,7 +2505,6 @@
+@@ -2530,7 +2507,6 @@
        "os": [
          "win32"
        ],
@@ -216,7 +225,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2545,7 +2521,6 @@
+@@ -2547,7 +2523,6 @@
        "os": [
          "win32"
        ],
@@ -224,7 +233,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2562,7 +2537,6 @@
+@@ -2564,7 +2539,6 @@
        "os": [
          "win32"
        ],
@@ -232,7 +241,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": ">=18"
        }
-@@ -7228,16 +7202,16 @@
+@@ -7230,16 +7204,16 @@
        }
      },
      "node_modules/@vitest/expect": {
@@ -254,7 +263,7 @@ index 5e1f45ced2..5927ac7845 100644
          "chai": "^6.2.2",
          "tinyrainbow": "^3.1.0"
        },
-@@ -7246,13 +7220,13 @@
+@@ -7248,13 +7222,13 @@
        }
      },
      "node_modules/@vitest/mocker": {
@@ -272,7 +281,7 @@ index 5e1f45ced2..5927ac7845 100644
          "estree-walker": "^3.0.3",
          "magic-string": "^0.30.21"
        },
-@@ -7273,9 +7247,9 @@
+@@ -7275,9 +7249,9 @@
        }
      },
      "node_modules/@vitest/pretty-format": {
@@ -285,7 +294,7 @@ index 5e1f45ced2..5927ac7845 100644
        "dev": true,
        "license": "MIT",
        "dependencies": {
-@@ -7286,13 +7260,13 @@
+@@ -7288,13 +7262,13 @@
        }
      },
      "node_modules/@vitest/runner": {
@@ -303,7 +312,7 @@ index 5e1f45ced2..5927ac7845 100644
          "pathe": "^2.0.3"
        },
        "funding": {
-@@ -7300,14 +7274,14 @@
+@@ -7302,14 +7276,14 @@
        }
      },
      "node_modules/@vitest/snapshot": {
@@ -323,7 +332,7 @@ index 5e1f45ced2..5927ac7845 100644
          "magic-string": "^0.30.21",
          "pathe": "^2.0.3"
        },
-@@ -7316,9 +7290,9 @@
+@@ -7318,9 +7292,9 @@
        }
      },
      "node_modules/@vitest/spy": {
@@ -336,7 +345,7 @@ index 5e1f45ced2..5927ac7845 100644
        "dev": true,
        "license": "MIT",
        "funding": {
-@@ -7326,13 +7300,13 @@
+@@ -7328,13 +7302,13 @@
        }
      },
      "node_modules/@vitest/utils": {
@@ -354,20 +363,20 @@ index 5e1f45ced2..5927ac7845 100644
          "convert-source-map": "^2.0.0",
          "tinyrainbow": "^3.1.0"
        },
-@@ -8025,9 +7999,9 @@
+@@ -8027,9 +8001,9 @@
        "license": "MIT"
      },
      "node_modules/baseline-browser-mapping": {
 -      "version": "2.10.43",
 -      "resolved": "https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.10.43.tgz",
 -      "integrity": "sha512-AjYpR78kDWAY3Efj+cDTFH9t9SCoL7OoTp1BOb0mQV7S+6CiLwnWM3FyxhJtdPufDFKzmCSFoUncKjWgJEZTCQ==",
-+      "version": "2.11.20",
-+      "resolved": "https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.11.20.tgz",
-+      "integrity": "sha512-H0ulySigv6icDJ1F7SjtdCD6PrhTpdYCmP0CactWy1+ekh0AFd0o1Wn5T8b+hnTmdBx19u9yhL6wvCylXMY7zw==",
++      "version": "2.11.21",
++      "resolved": "https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.11.21.tgz",
++      "integrity": "sha512-uh8vpY/1/YyFkunIDFH/12p7/7VdPKA1hejMVEbdkEaWnUz0Hesvx5EbiU6XxjyHZIOju+ZMbQJkRh+es3/spQ==",
        "dev": true,
        "license": "Apache-2.0",
        "bin": {
-@@ -8092,9 +8066,9 @@
+@@ -8094,9 +8068,9 @@
        }
      },
      "node_modules/browserslist": {
@@ -380,7 +389,7 @@ index 5e1f45ced2..5927ac7845 100644
        "dev": true,
        "funding": [
          {
-@@ -8112,11 +8086,11 @@
+@@ -8114,11 +8088,11 @@
        ],
        "license": "MIT",
        "dependencies": {
@@ -397,7 +406,7 @@ index 5e1f45ced2..5927ac7845 100644
        },
        "bin": {
          "browserslist": "cli.js"
-@@ -8425,9 +8399,9 @@
+@@ -8427,9 +8401,9 @@
        }
      },
      "node_modules/caniuse-lite": {
@@ -410,7 +419,7 @@ index 5e1f45ced2..5927ac7845 100644
        "dev": true,
        "funding": [
          {
-@@ -8729,9 +8703,9 @@
+@@ -8731,9 +8705,9 @@
        }
      },
      "node_modules/colord": {
@@ -423,20 +432,20 @@ index 5e1f45ced2..5927ac7845 100644
        "license": "MIT"
      },
      "node_modules/combined-stream": {
-@@ -10317,9 +10291,9 @@
+@@ -10319,9 +10293,9 @@
        }
      },
      "node_modules/electron-to-chromium": {
 -      "version": "1.5.393",
 -      "resolved": "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.393.tgz",
 -      "integrity": "sha512-kiDJdIUawuEIcp9XoICKp1iTYDEbgguIPq526N1Q7jIQDeQ3CqoMx71025PI/7E48Ddtw2HuWsVjY7afEgNxmg==",
-+      "version": "1.5.420",
-+      "resolved": "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.420.tgz",
-+      "integrity": "sha512-2yD6XreGusOfNV+dUcvipJEXc3n/n7fgr7996aszTG+YY5E4mqM4tOq/3uhP129cazL9YHbVWSpc79ePotWtPA==",
++      "version": "1.5.422",
++      "resolved": "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.422.tgz",
++      "integrity": "sha512-UvA/32XqrLDdZSn7Jllo1AYNcWji/G0d5M0GTViE7KoGBiMunw3a34Sb2KO4ZZyrSEhqsxFoVhWWJshdyfKqJA==",
        "dev": true,
        "license": "ISC"
      },
-@@ -15127,9 +15101,9 @@
+@@ -15129,9 +15103,9 @@
        }
      },
      "node_modules/node-releases": {
@@ -449,7 +458,7 @@ index 5e1f45ced2..5927ac7845 100644
        "dev": true,
        "license": "MIT",
        "engines": {
-@@ -16881,9 +16855,9 @@
+@@ -16883,9 +16857,9 @@
        }
      },
      "node_modules/sanitize-html": {
@@ -462,7 +471,20 @@ index 5e1f45ced2..5927ac7845 100644
        "license": "MIT",
        "dependencies": {
          "deepmerge": "^4.2.2",
-@@ -18047,7 +18021,6 @@
+@@ -17877,9 +17851,9 @@
+       }
+     },
+     "node_modules/tinyrainbow": {
+-      "version": "3.1.0",
+-      "resolved": "https://registry.npmjs.org/tinyrainbow/-/tinyrainbow-3.1.0.tgz",
+-      "integrity": "sha512-Bf+ILmBgretUrdJxzXM0SgXLZ3XfiaUuOj/IKQHuTXip+05Xn+uyEYdVg0kYDipTBcLrCVyUzAPz7QmArb0mmw==",
++      "version": "3.1.1",
++      "resolved": "https://registry.npmjs.org/tinyrainbow/-/tinyrainbow-3.1.1.tgz",
++      "integrity": "sha512-yau8yJdTt989Mm0Bd/236QnzEiPf2xLLTqUZRUJOo/3CB078LSwzei343DgtJVmfJKJE3TMINY1u42SQsP6mXw==",
+       "dev": true,
+       "license": "MIT",
+       "engines": {
+@@ -18049,7 +18023,6 @@
        "os": [
          "darwin"
        ],
@@ -470,7 +492,7 @@ index 5e1f45ced2..5927ac7845 100644
        "engines": {
          "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
        }
-@@ -18368,9 +18341,9 @@
+@@ -18370,9 +18343,9 @@
        }
      },
      "node_modules/update-browserslist-db": {
@@ -483,7 +505,7 @@ index 5e1f45ced2..5927ac7845 100644
        "dev": true,
        "funding": [
          {
-@@ -18786,19 +18759,19 @@
+@@ -18788,19 +18761,19 @@
        }
      },
      "node_modules/vitest": {
@@ -513,7 +535,7 @@ index 5e1f45ced2..5927ac7845 100644
          "es-module-lexer": "^2.0.0",
          "expect-type": "^1.3.0",
          "magic-string": "^0.30.21",
-@@ -18826,12 +18799,12 @@
+@@ -18828,12 +18801,12 @@
          "@edge-runtime/vm": "*",
          "@opentelemetry/api": "^1.9.0",
          "@types/node": "^20.0.0 || ^22.0.0 || >=24.0.0",
@@ -532,7 +554,7 @@ index 5e1f45ced2..5927ac7845 100644
          "happy-dom": "*",
          "jsdom": "*",
          "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
-@@ -19457,7 +19430,7 @@
+@@ -19459,7 +19432,7 @@
          "@types/plist": "3.0.5",
          "plist": "3.1.1",
          "typescript": "6.0.3",
@@ -541,7 +563,7 @@ index 5e1f45ced2..5927ac7845 100644
        }
      },
      "tests-js/node_modules/@xmldom/xmldom": {
-@@ -19505,7 +19478,7 @@
+@@ -19507,7 +19480,7 @@
          "prettier": "3.9.5",
          "tsx": "4.23.1",
          "typescript": "6.0.3",
@@ -550,7 +572,7 @@ index 5e1f45ced2..5927ac7845 100644
        }
      },
      "ui-tui/node_modules/semver": {
-@@ -19604,7 +19577,7 @@
+@@ -19606,7 +19579,7 @@
          "three": "0.180.0",
          "typescript": "6.0.3",
          "vite": "8.2.0",
@@ -560,32 +582,9 @@ index 5e1f45ced2..5927ac7845 100644
      },
      "web/node_modules/@babel/code-frame": {
 diff --git a/package.json b/package.json
-index 406b73b205..1141a3aa05 100644
+index 406b73b205..10f093b3d4 100644
 --- a/package.json
 +++ b/package.json
-@@ -11,7 +11,7 @@
-     "tests-js"
-   ],
-   "scripts": {
--    "postinstall": "echo '\u2705 Node dependencies installed. Run: python run_agent.py --help'",
-+    "postinstall": "echo '✅ Node dependencies installed. Run: python run_agent.py --help'",
-     "install:root": "npm install --workspaces=false",
-     "install:web": "npm install --workspace web",
-     "install:tui": "npm install --workspace ui-tui",
-@@ -36,11 +36,11 @@
-   "homepage": "https://github.com/NousResearch/Hermes-Agent#readme",
-   "devDependencies": {
-     "@eslint/js": "9.39.5",
--    "typescript-eslint": "8.64.0",
-     "eslint-plugin-perfectionist": "5.10.0",
-     "eslint-plugin-react-hooks": "7.1.1",
-     "eslint-plugin-unused-imports": "4.4.1",
--    "globals": "17.7.0"
-+    "globals": "17.7.0",
-+    "typescript-eslint": "8.64.0"
-   },
-   "overrides": {
-     "lodash": "4.18.1",
 @@ -56,7 +56,12 @@
      "undici@^6": "6.28.0",
      "undici@^7": "7.29.0",
@@ -594,9 +593,9 @@ index 406b73b205..1141a3aa05 100644
 +    "tar": "7.5.22",
 +    "browserslist": "4.28.8",
 +    "sanitize-html": "2.17.7",
-+    "colord": "2.9.4",
 +    "vitest": "4.1.11",
-+    "@vitest/mocker": "4.1.11"
++    "@vitest/mocker": "4.1.11",
++    "colord": "2.9.4"
    },
    "engines": {
      "node": "^22.22.0 || ^24.11.0 || >=26.0.0",

@@ -1,4 +1,4 @@
-name: Build Hermes v0.21.0 security image
+name: Build Hermes v0.21.3 security image
 
 on:
   push:
@@ -7,17 +7,17 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: hermes-v021-security-${{ github.ref }}
+  group: hermes-v0213-security-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   DOCKER_BUILD_RECORD_UPLOAD: false
   IMAGE_NAME: ghcr.io/wmorin/hermes-v021-security-image
-  IMAGE_TAG: v0.21.0-security.2
+  IMAGE_TAG: v0.21.3-security.1
   UPSTREAM_SOURCE: https://github.com/NousResearch/hermes-agent
-  UPSTREAM_REVISION: 29112bef099274229cadff79cdff7bf7b99c4b77
+  UPSTREAM_REVISION: 345cd2b057a452236de401d3534b8502a7465e8d
   SECURITY_BASELINE_REVISION: 51e2cb22b07f302827fdf3fd82f1d8c710aedfe3
-  SECURITY_PATCH_SHA256: eb40360f786d746fe378ce230d8ab914b8246bdf497f69f4857a99a695081ca5
+  SECURITY_PATCH_SHA256: 4325356290ac7d4f1062d86facc9b1634e0770270823e89b87dd1863bd2e01cc
 
 jobs:
   build-test:
@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: NousResearch/hermes-agent
-          ref: 29112bef099274229cadff79cdff7bf7b99c4b77
+          ref: 345cd2b057a452236de401d3534b8502a7465e8d
           path: hermes-agent
           fetch-depth: 1
           persist-credentials: false
@@ -63,7 +63,7 @@ jobs:
           platforms: linux/amd64
           load: true
           push: false
-          tags: hermes-v021-security:test
+          tags: hermes-v0213-security:test
           build-args: |
             HERMES_GIT_SHA=${{ env.UPSTREAM_REVISION }}
           labels: |
@@ -74,22 +74,22 @@ jobs:
             io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
             io.wmorin.hermes.security-baseline-revision=${{ env.SECURITY_BASELINE_REVISION }}
             io.wmorin.hermes.security-patch-sha256=${{ env.SECURITY_PATCH_SHA256 }}
-          cache-from: type=gha,scope=hermes-v021-security-amd64
-          cache-to: type=gha,mode=max,scope=hermes-v021-security-amd64
+          cache-from: type=gha,scope=hermes-v0213-security-amd64
+          cache-to: type=gha,mode=max,scope=hermes-v0213-security-amd64
 
       - name: Smoke-test image identity and patched packages
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /opt/hermes/.venv/bin/hermes \
-            hermes-v021-security:test --version | grep -F 'Hermes Agent v0.21.0 (2026.8.31)'
-          docker run --rm --entrypoint sh hermes-v021-security:test -c \
+            hermes-v0213-security:test --version | grep -F 'Hermes Agent v0.21.3 (2026.9.14)'
+          docker run --rm --entrypoint sh hermes-v0213-security:test -c \
             'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 vitest@4.1.11 @vitest/mocker@4.1.11 colord@2.9.4 --all'
-          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
-          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
-          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
-          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
-          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-baseline-revision"}}')" = "${SECURITY_BASELINE_REVISION}"
-          test "$(docker image inspect hermes-v021-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
+          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
+          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
+          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
+          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
+          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-baseline-revision"}}')" = "${SECURITY_BASELINE_REVISION}"
+          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
 
   publish:
     if: github.ref == 'refs/heads/main'
@@ -112,7 +112,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: NousResearch/hermes-agent
-          ref: 29112bef099274229cadff79cdff7bf7b99c4b77
+          ref: 345cd2b057a452236de401d3534b8502a7465e8d
           path: hermes-agent
           fetch-depth: 1
           persist-credentials: false
@@ -160,8 +160,8 @@ jobs:
             io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
             io.wmorin.hermes.security-baseline-revision=${{ env.SECURITY_BASELINE_REVISION }}
             io.wmorin.hermes.security-patch-sha256=${{ env.SECURITY_PATCH_SHA256 }}
-          cache-from: type=gha,scope=hermes-v021-security-amd64
-          cache-to: type=gha,mode=max,scope=hermes-v021-security-amd64
+          cache-from: type=gha,scope=hermes-v0213-security-amd64
+          cache-to: type=gha,mode=max,scope=hermes-v0213-security-amd64
           provenance: mode=min
           sbom: true
 
@@ -172,7 +172,7 @@ jobs:
           set -euo pipefail
           docker pull "${PUBLISHED_IMAGE}"
           docker run --rm --entrypoint /opt/hermes/.venv/bin/hermes \
-            "${PUBLISHED_IMAGE}" --version | grep -F 'Hermes Agent v0.21.0 (2026.8.31)'
+            "${PUBLISHED_IMAGE}" --version | grep -F 'Hermes Agent v0.21.3 (2026.9.14)'
           docker run --rm --entrypoint sh "${PUBLISHED_IMAGE}" -c \
             'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 vitest@4.1.11 @vitest/mocker@4.1.11 colord@2.9.4 --all'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
