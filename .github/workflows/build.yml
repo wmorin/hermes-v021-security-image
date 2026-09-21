@@ -16,7 +16,8 @@ concurrency:
 env:
   DOCKER_BUILD_RECORD_UPLOAD: false
   IMAGE_NAME: ghcr.io/wmorin/hermes-v021-security-image
-  IMAGE_TAG: v0.21.3-security.1
+  STAGING_IMAGE: ghcr.io/wmorin/hermes-v021-security-staging
+  IMAGE_VERSION: v0.21.3-security.1
   UPSTREAM_SOURCE: https://github.com/NousResearch/hermes-agent
   UPSTREAM_REVISION: 345cd2b057a452236de401d3534b8502a7465e8d
   SECURITY_BASELINE_REVISION: 51e2cb22b07f302827fdf3fd82f1d8c710aedfe3
@@ -72,7 +73,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/wmorin/hermes-v021-security-image
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ env.IMAGE_TAG }}
+            org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
             io.wmorin.hermes.upstream-source=${{ env.UPSTREAM_SOURCE }}
             io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
             io.wmorin.hermes.security-baseline-revision=${{ env.SECURITY_BASELINE_REVISION }}
@@ -144,23 +145,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Refuse release-tag replacement
-        run: |
-          set -euo pipefail
-          probe_file="$(mktemp)"
-          trap 'unlink "${probe_file}" 2>/dev/null || true' EXIT
-          if docker buildx imagetools inspect \
-            "${IMAGE_NAME}:${IMAGE_TAG}" >"${probe_file}" 2>&1; then
-            echo "Release tag already exists and is immutable: ${IMAGE_NAME}:${IMAGE_TAG}" >&2
-            exit 1
-          fi
-          if ! grep -Eiq 'not found|manifest unknown' "${probe_file}"; then
-            cat "${probe_file}" >&2
-            echo 'Could not prove that the release tag is absent.' >&2
-            exit 1
-          fi
-
-      - name: Build and publish staged linux/amd64 candidate
+      - name: Build and publish private staged linux/amd64 candidate
         id: build
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
@@ -168,13 +153,13 @@ jobs:
           file: hermes-agent/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IMAGE_NAME }}:candidate-${{ github.sha }}
+          tags: ${{ env.STAGING_IMAGE }}:candidate-${{ github.sha }}
           build-args: |
             HERMES_GIT_SHA=${{ env.UPSTREAM_REVISION }}
           labels: |
             org.opencontainers.image.source=https://github.com/wmorin/hermes-v021-security-image
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ env.IMAGE_TAG }}
+            org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
             io.wmorin.hermes.upstream-source=${{ env.UPSTREAM_SOURCE }}
             io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
             io.wmorin.hermes.security-baseline-revision=${{ env.SECURITY_BASELINE_REVISION }}
@@ -184,9 +169,16 @@ jobs:
           provenance: mode=min
           sbom: true
 
-      - name: Verify the exact published digest
+      - name: Verify private staging visibility
         env:
-          PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api /users/wmorin/packages/container/hermes-v021-security-staging --jq .visibility)" = private
+
+      - name: Verify the exact staged digest
+        env:
+          PUBLISHED_IMAGE: ${{ env.STAGING_IMAGE }}@${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
           docker pull "${PUBLISHED_IMAGE}"
@@ -196,15 +188,15 @@ jobs:
             'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 vitest@4.1.11 @vitest/mocker@4.1.11 colord@2.9.4 --all'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
-          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "${IMAGE_TAG}"
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "${IMAGE_VERSION}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-baseline-revision"}}')" = "${SECURITY_BASELINE_REVISION}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
 
-      - name: Verify minimal provenance and public SBOM
+      - name: Verify minimal provenance and staged SBOM
         env:
-          PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          PUBLISHED_IMAGE: ${{ env.STAGING_IMAGE }}@${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
           provenance_file="$(mktemp)"
@@ -263,16 +255,18 @@ jobs:
             .name? == "colord" and .versionInfo? == "2.9.4"
           )] | length > 0' "${sbom_file}" >/dev/null
 
-      - name: Promote verified digest to immutable release tag
+      - name: Publish verified digest under a commit-addressed discovery tag
         env:
-          PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          RELEASE_IMAGE: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          PUBLISHED_IMAGE: ${{ env.STAGING_IMAGE }}@${{ steps.build.outputs.digest }}
+          PUBLIC_IMAGE: ${{ env.IMAGE_NAME }}:build-${{ github.sha }}
           EXPECTED_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
-          docker buildx imagetools create --tag "${RELEASE_IMAGE}" "${PUBLISHED_IMAGE}"
-          actual_digest="sha256:$(docker buildx imagetools inspect --raw "${RELEASE_IMAGE}" | sha256sum | awk '{print $1}')"
+          docker buildx imagetools create --tag "${PUBLIC_IMAGE}" "${PUBLISHED_IMAGE}"
+          actual_digest="sha256:$(docker buildx imagetools inspect --raw "${PUBLIC_IMAGE}" | sha256sum | awk '{print $1}')"
           test "${actual_digest}" = "${EXPECTED_DIGEST}"
 
       - name: Report immutable identity
-        run: printf 'image=%s@%s\n' "${IMAGE_NAME}" "${{ steps.build.outputs.digest }}"
+        run: |
+          printf 'image=%s@%s\n' "${IMAGE_NAME}" "${{ steps.build.outputs.digest }}"
+          printf 'discovery_tag=%s:build-%s\n' "${IMAGE_NAME}" "${GITHUB_SHA}"

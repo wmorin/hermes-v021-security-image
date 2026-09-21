@@ -24,8 +24,12 @@ The workflow audits the root, web, and TUI dependency scopes, builds with the
 upstream Dockerfile, and smoke-tests the Hermes version, patched packages, and
 image labels before publishing.
 
-The published image includes an SBOM and minimal BuildKit provenance. Tags are
-discovery metadata only; consumers should pin the immutable manifest digest.
+The workflow builds into a separate private staging package, verifies the exact
+digest, SBOM, and structural source provenance there, then copies that digest to
+the public package under a commit-addressed `build-<builder SHA>` discovery tag.
+It does not publish a semantic container tag because GHCR does not provide
+registry-enforced immutable tags. Consumers must pin the immutable manifest
+digest reported by the workflow; tags are non-authoritative discovery metadata.
 
 No private configuration, runtime data, credentials, or deployment repository
 is used by this build.
