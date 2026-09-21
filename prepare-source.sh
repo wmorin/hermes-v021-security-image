@@ -64,4 +64,4 @@ assert web["devDependencies"]["vitest"] == "4.1.11"
 print("security_patch=browserslist-4.28.8,sanitize-html-2.17.7,vitest-4.1.11,@vitest/mocker-4.1.11,colord-2.9.4")
 PY
 
-test "$(git diff --name-only -- apps/desktop/package.json package-lock.json package.json tests-js/package.json ui-tui/package.json web/package.json)" = $'apps/desktop/package.json\npackage-lock.json\npackage.json\ntests-js/package.json\nui-tui/package.json\nweb/package.json'
+test "$(git status --porcelain=v1 --untracked-files=all)" = $' M apps/desktop/package.json\n M package-lock.json\n M package.json\n M tests-js/package.json\n M ui-tui/package.json\n M web/package.json'

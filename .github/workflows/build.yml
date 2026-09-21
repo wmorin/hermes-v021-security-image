@@ -95,7 +95,7 @@ jobs:
           test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
 
   publish:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: build-test
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -144,7 +144,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Build and publish exact linux/amd64 image
+      - name: Refuse release-tag replacement
+        run: |
+          set -euo pipefail
+          probe_file="$(mktemp)"
+          trap 'unlink "${probe_file}" 2>/dev/null || true' EXIT
+          if docker buildx imagetools inspect \
+            "${IMAGE_NAME}:${IMAGE_TAG}" >"${probe_file}" 2>&1; then
+            echo "Release tag already exists and is immutable: ${IMAGE_NAME}:${IMAGE_TAG}" >&2
+            exit 1
+          fi
+          if ! grep -Eiq 'not found|manifest unknown' "${probe_file}"; then
+            cat "${probe_file}" >&2
+            echo 'Could not prove that the release tag is absent.' >&2
+            exit 1
+          fi
+
+      - name: Build and publish staged linux/amd64 candidate
         id: build
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
@@ -152,7 +168,7 @@ jobs:
           file: hermes-agent/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          tags: ${{ env.IMAGE_NAME }}:candidate-${{ github.sha }}
           build-args: |
             HERMES_GIT_SHA=${{ env.UPSTREAM_REVISION }}
           labels: |
@@ -217,11 +233,20 @@ jobs:
             echo 'Unexpected email address in public provenance' >&2
             exit 1
           fi
-          grep -F 'https://github.com/wmorin/hermes-v021-security-image/actions/runs/' \
-            "${provenance_file}" >/dev/null
-          grep -F 'https://github.com/NousResearch/hermes-agent' \
-            "${provenance_file}" >/dev/null
-          grep -F "${UPSTREAM_REVISION}" "${provenance_file}" >/dev/null
+          jq -e \
+            --arg builder_prefix 'https://github.com/wmorin/hermes-v021-security-image/actions/runs/' \
+            --arg source "${UPSTREAM_SOURCE}" \
+            --arg revision "${UPSTREAM_REVISION}" \
+            '
+              .SLSA.runDetails.builder.id | startswith($builder_prefix)
+            ' "${provenance_file}" >/dev/null
+          jq -e \
+            --arg source "${UPSTREAM_SOURCE}" \
+            --arg revision "${UPSTREAM_REVISION}" \
+            '
+              .SLSA.buildDefinition.externalParameters.request.root.configSource.request.args
+              | .["vcs:source"] == $source and .["vcs:revision"] == $revision
+            ' "${provenance_file}" >/dev/null
           jq -e '[.. | objects | select(
             .name? == "browserslist" and .versionInfo? == "4.28.8"
           )] | length > 0' "${sbom_file}" >/dev/null
@@ -237,6 +262,17 @@ jobs:
           jq -e '[.. | objects | select(
             .name? == "colord" and .versionInfo? == "2.9.4"
           )] | length > 0' "${sbom_file}" >/dev/null
+
+      - name: Promote verified digest to immutable release tag
+        env:
+          PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          RELEASE_IMAGE: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          EXPECTED_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create --tag "${RELEASE_IMAGE}" "${PUBLISHED_IMAGE}"
+          actual_digest="sha256:$(docker buildx imagetools inspect --raw "${RELEASE_IMAGE}" | sha256sum | awk '{print $1}')"
+          test "${actual_digest}" = "${EXPECTED_DIGEST}"
 
       - name: Report immutable identity
         run: printf 'image=%s@%s\n' "${IMAGE_NAME}" "${{ steps.build.outputs.digest }}"
