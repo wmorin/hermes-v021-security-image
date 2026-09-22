@@ -24,10 +24,16 @@ The workflow audits the root, web, and TUI dependency scopes, builds with the
 upstream Dockerfile, and smoke-tests the Hermes version, patched packages, and
 image labels before publishing.
 
-The workflow builds into a separate private staging package, verifies the exact
-digest, SBOM, and structural source provenance there, then copies that digest to
-the public package under a commit-addressed `build-<builder SHA>` discovery tag.
-It does not publish a semantic container tag because GHCR does not provide
+The workflow publishes directly to the version-specific final package
+`ghcr.io/wmorin/hermes-v0213-security-image`, which GitHub creates as private by
+default. It refuses to push if that package is already public, then verifies the
+exact digest, SBOM, structural source provenance, and provenance subject while
+the package remains private. Only after the workflow succeeds is the verified
+package made public manually in GitHub's package settings; that visibility
+change is intentionally outside the build job because it is irreversible.
+
+The image has only a commit-addressed `build-<builder SHA>` discovery tag. It
+does not publish a semantic container tag because GHCR does not provide
 registry-enforced immutable tags. Consumers must pin the immutable manifest
 digest reported by the workflow; tags are non-authoritative discovery metadata.
 

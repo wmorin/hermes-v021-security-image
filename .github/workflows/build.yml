@@ -15,8 +15,8 @@ concurrency:
 
 env:
   DOCKER_BUILD_RECORD_UPLOAD: false
-  IMAGE_NAME: ghcr.io/wmorin/hermes-v021-security-image
-  STAGING_IMAGE: ghcr.io/wmorin/hermes-v021-security-staging
+  IMAGE_NAME: ghcr.io/wmorin/hermes-v0213-security-image
+  PACKAGE_NAME: hermes-v0213-security-image
   IMAGE_VERSION: v0.21.3-security.1
   UPSTREAM_SOURCE: https://github.com/NousResearch/hermes-agent
   UPSTREAM_REVISION: 345cd2b057a452236de401d3534b8502a7465e8d
@@ -145,7 +145,30 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Build and publish private staged linux/amd64 candidate
+      - name: Refuse to overwrite a public package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api_error_file="$(mktemp)"
+          trap 'unlink "${api_error_file}" 2>/dev/null || true' EXIT
+
+          set +e
+          package_visibility="$(
+            gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" \
+              --jq .visibility 2>"${api_error_file}"
+          )"
+          result_status=$?
+          set -e
+
+          if [ "${result_status}" -eq 0 ]; then
+            test "${package_visibility}" = private
+          elif ! grep -qF '(HTTP 404)' "${api_error_file}"; then
+            echo 'Could not prove that the destination package is absent or private' >&2
+            exit 1
+          fi
+
+      - name: Build and publish private final-package linux/amd64 candidate
         id: build
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
@@ -153,7 +176,7 @@ jobs:
           file: hermes-agent/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.STAGING_IMAGE }}:candidate-${{ github.sha }}
+          tags: ${{ env.IMAGE_NAME }}:build-${{ github.sha }}
           build-args: |
             HERMES_GIT_SHA=${{ env.UPSTREAM_REVISION }}
           labels: |
@@ -169,16 +192,16 @@ jobs:
           provenance: mode=min
           sbom: true
 
-      - name: Verify private staging visibility
+      - name: Verify final package remains private
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(gh api /users/wmorin/packages/container/hermes-v021-security-staging --jq .visibility)" = private
+          test "$(gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" --jq .visibility)" = private
 
-      - name: Verify the exact staged digest
+      - name: Verify the exact private digest
         env:
-          PUBLISHED_IMAGE: ${{ env.STAGING_IMAGE }}@${{ steps.build.outputs.digest }}
+          PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
           docker pull "${PUBLISHED_IMAGE}"
@@ -194,15 +217,21 @@ jobs:
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-baseline-revision"}}')" = "${SECURITY_BASELINE_REVISION}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
 
-      - name: Verify minimal provenance and staged SBOM
+      - name: Verify minimal provenance and SBOM
         env:
-          PUBLISHED_IMAGE: ${{ env.STAGING_IMAGE }}@${{ steps.build.outputs.digest }}
+          PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           provenance_file="$(mktemp)"
           sbom_file="$(mktemp)"
           email_file="$(mktemp)"
-          trap 'unlink "${provenance_file}" "${sbom_file}" "${email_file}" 2>/dev/null || true' EXIT
+          index_file="$(mktemp)"
+          attestation_file="$(mktemp)"
+          statement_file="$(mktemp)"
+          credentials_file="$(mktemp)"
+          header_file="$(mktemp)"
+          trap 'unlink "${provenance_file}" "${sbom_file}" "${email_file}" "${index_file}" "${attestation_file}" "${statement_file}" "${credentials_file}" "${header_file}" 2>/dev/null || true' EXIT
 
           docker buildx imagetools inspect "${PUBLISHED_IMAGE}" \
             --format '{{json .Provenance}}' >"${provenance_file}"
@@ -236,9 +265,49 @@ jobs:
             --arg source "${UPSTREAM_SOURCE}" \
             --arg revision "${UPSTREAM_REVISION}" \
             '
-              .SLSA.buildDefinition.externalParameters.request.root.configSource.request.args
+              .SLSA.buildDefinition.externalParameters.request.root.request.args
               | .["vcs:source"] == $source and .["vcs:revision"] == $revision
             ' "${provenance_file}" >/dev/null
+
+          docker buildx imagetools inspect "${PUBLISHED_IMAGE}" --raw >"${index_file}"
+          platform_digest="$(jq -er '.manifests[] | select(
+            .platform.os == "linux" and .platform.architecture == "amd64"
+          ) | .digest' "${index_file}")"
+          attestation_digest="$(jq -er \
+            --arg platform_digest "${platform_digest}" \
+            '.manifests[] | select(
+              .annotations["vnd.docker.reference.type"] == "attestation-manifest" and
+              .annotations["vnd.docker.reference.digest"] == $platform_digest
+            ) | .digest' "${index_file}")"
+          docker buildx imagetools inspect \
+            "${IMAGE_NAME}@${attestation_digest}" --raw >"${attestation_file}"
+          provenance_digest="$(jq -er '.layers[] | select(
+            .annotations["in-toto.io/predicate-type"] == "https://slsa.dev/provenance/v1"
+          ) | .digest' "${attestation_file}")"
+
+          chmod 600 "${credentials_file}"
+          printf 'machine ghcr.io\nlogin %s\npassword %s\n' \
+            "${GITHUB_ACTOR}" "${GITHUB_TOKEN}" >"${credentials_file}"
+          registry_token="$(
+            curl --fail --silent --show-error --netrc-file "${credentials_file}" \
+              "https://ghcr.io/token?service=ghcr.io&scope=repository:wmorin/${PACKAGE_NAME}:pull" \
+              | jq -er .token
+          )"
+          chmod 600 "${header_file}"
+          printf 'Authorization: Bearer %s\n' "${registry_token}" >"${header_file}"
+          curl --fail --silent --show-error \
+            -H "@${header_file}" \
+            "https://ghcr.io/v2/wmorin/${PACKAGE_NAME}/blobs/${provenance_digest}" \
+            >"${statement_file}"
+          jq -e \
+            --arg subject_name "pkg:docker/${IMAGE_NAME}@build-${GITHUB_SHA}?platform=linux%2Famd64" \
+            --arg subject_digest "${platform_digest#sha256:}" \
+            '
+              .subject == [{
+                name: $subject_name,
+                digest: {sha256: $subject_digest}
+              }]
+            ' "${statement_file}" >/dev/null
           jq -e '[.. | objects | select(
             .name? == "browserslist" and .versionInfo? == "4.28.8"
           )] | length > 0' "${sbom_file}" >/dev/null
@@ -255,18 +324,8 @@ jobs:
             .name? == "colord" and .versionInfo? == "2.9.4"
           )] | length > 0' "${sbom_file}" >/dev/null
 
-      - name: Publish verified digest under a commit-addressed discovery tag
-        env:
-          PUBLISHED_IMAGE: ${{ env.STAGING_IMAGE }}@${{ steps.build.outputs.digest }}
-          PUBLIC_IMAGE: ${{ env.IMAGE_NAME }}:build-${{ github.sha }}
-          EXPECTED_DIGEST: ${{ steps.build.outputs.digest }}
-        run: |
-          set -euo pipefail
-          docker buildx imagetools create --tag "${PUBLIC_IMAGE}" "${PUBLISHED_IMAGE}"
-          actual_digest="sha256:$(docker buildx imagetools inspect --raw "${PUBLIC_IMAGE}" | sha256sum | awk '{print $1}')"
-          test "${actual_digest}" = "${EXPECTED_DIGEST}"
-
-      - name: Report immutable identity
+      - name: Report verified private identity
         run: |
           printf 'image=%s@%s\n' "${IMAGE_NAME}" "${{ steps.build.outputs.digest }}"
           printf 'discovery_tag=%s:build-%s\n' "${IMAGE_NAME}" "${GITHUB_SHA}"
+          printf 'promotion_url=https://github.com/users/wmorin/packages/container/%s/settings\n' "${PACKAGE_NAME}"
