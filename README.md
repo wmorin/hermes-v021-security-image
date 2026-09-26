@@ -15,6 +15,8 @@ sources.
   `sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2`,
   and uv 0.12.19 index
   `sha256:dbc39f05b15187083adc7d2ad7d7bb40f3227f1bfed39f428d73d7493fdc43fe`.
+- Debian packages are resolved only from the dated Debian and Debian Security
+  snapshots at `20260925T000000Z`; `apt-get upgrade` does not use mutable mirrors.
 - Platform: `linux/amd64`.
 
 The upstream release tag is unsigned. This builder therefore pins the resolved
@@ -31,15 +33,20 @@ image labels before publishing.
 
 The workflow publishes directly to the version-specific final package
 `ghcr.io/wmorin/hermes-v0215-security-image`. Before the workflow can publish,
-that package must be created by a command-line bootstrap push and its GitHub
-visibility must be verified as private. This avoids a first GitHub Actions push
-inheriting the public builder repository's visibility. The bootstrap image must
-carry only the `bootstrap` tag. After publication, the workflow requires the
+that package must be created by a command-line bootstrap push, connected to the
+`wmorin/hermes-v021-security-image` repository under **Manage Actions access**
+with admin permission, and verified as private. This avoids a first GitHub
+Actions push inheriting the public builder repository's visibility while giving
+the repository-scoped `GITHUB_TOKEN` explicit write/delete access. The package
+must contain exactly one version and that bootstrap image must carry only the
+`bootstrap` tag. The workflow validates this complete inventory and repository
+connection before publication. After publication, the workflow requires the
 package to remain private, requires an anonymous manifest request to return an
 explicit authorization denial, and verifies the exact digest, Trivy result,
 SBOM, structural source provenance, and provenance subject. Only after every
 verification passes does it delete the single `bootstrap` package version and
-prove that the package is still private. Public promotion is a separate manual
+prove that every remaining package version belongs to the newly published OCI
+index and that the package is still private. Public promotion is a separate manual
 release action; the workflow refuses to publish unless the existing destination
 package is private.
 

@@ -20,7 +20,7 @@ env:
   IMAGE_VERSION: v0.21.5-security.1
   UPSTREAM_SOURCE: https://github.com/NousResearch/hermes-agent
   UPSTREAM_REVISION: f97608f178d1ffeca59860195ab7da295f7c8e5f
-  SECURITY_PATCH_SHA256: 70727d75c2c2bf99f8e9d16c98f095a5b28bdc589356463e6eddac6a5ad7eacf
+  SECURITY_PATCH_SHA256: 54bd5dc93bafb651923776425429f56cb30afdc591f5439060e2e684ee3f6622
 
 jobs:
   build-test:
@@ -87,7 +87,7 @@ jobs:
           docker run --rm --entrypoint sh hermes-v0215-security:test -c \
             'cd /opt/hermes && npm ls vitest@4.1.11 @vitest/mocker@4.1.11 --all'
           docker run --rm --entrypoint /opt/hermes/.venv/bin/python hermes-v0215-security:test -c \
-            'import importlib.metadata as m; expected={"anyio":"4.14.2","httpcore2":"2.12.0","httpx2":"2.12.0"}; actual={name:m.version(name) for name in expected}; print(actual); assert actual == expected'
+            'import importlib.metadata as m; expected={"anyio":"4.14.2","httpcore2":"2.12.0","httpx2":"2.12.0"}; actual={name:m.version(name) for name in expected}; print(actual); assert actual == expected; absent=("h2","hpack"); assert all(next((False for d in m.distributions() if d.metadata["Name"].lower()==name), True) for name in absent)'
           test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "io.wmorin.hermes.builder-repository"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
           test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
           test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
@@ -154,15 +154,31 @@ jobs:
           password: ${{ github.token }}
 
       - name: Require a pre-created private destination package
+        id: destination
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          package_visibility="$(
-            gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" \
-              --jq .visibility
-          )"
-          test "${package_visibility}" = private
+          package_file="$(mktemp)"
+          versions_file="$(mktemp)"
+          trap 'unlink "${package_file}" "${versions_file}" 2>/dev/null || true' EXIT
+          gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" >"${package_file}"
+          jq -e \
+            --arg repository "${GITHUB_REPOSITORY}" \
+            '.visibility == "private" and .repository.full_name == $repository' \
+            "${package_file}" >/dev/null
+          gh api --paginate --slurp \
+            "/users/wmorin/packages/container/${PACKAGE_NAME}/versions?per_page=100" \
+            >"${versions_file}"
+          jq -e '
+            add as $versions
+            | ($versions | length) == 1
+              and ($versions[0].metadata.container.tags == ["bootstrap"])
+          ' "${versions_file}" >/dev/null
+          bootstrap_version_id="$(jq -er 'add[0].id' "${versions_file}")"
+          bootstrap_digest="$(jq -er 'add[0].name' "${versions_file}")"
+          printf 'bootstrap_version_id=%s\n' "${bootstrap_version_id}" >>"${GITHUB_OUTPUT}"
+          printf 'bootstrap_digest=%s\n' "${bootstrap_digest}" >>"${GITHUB_OUTPUT}"
 
       - name: Build and publish private final-package linux/amd64 candidate
         id: build
@@ -233,7 +249,7 @@ jobs:
           docker run --rm --entrypoint sh "${PUBLISHED_IMAGE}" -c \
             'cd /opt/hermes && npm ls vitest@4.1.11 @vitest/mocker@4.1.11 --all'
           docker run --rm --entrypoint /opt/hermes/.venv/bin/python "${PUBLISHED_IMAGE}" -c \
-            'import importlib.metadata as m; expected={"anyio":"4.14.2","httpcore2":"2.12.0","httpx2":"2.12.0"}; actual={name:m.version(name) for name in expected}; print(actual); assert actual == expected'
+            'import importlib.metadata as m; expected={"anyio":"4.14.2","httpcore2":"2.12.0","httpx2":"2.12.0"}; actual={name:m.version(name) for name in expected}; print(actual); assert actual == expected; absent=("h2","hpack"); assert all(next((False for d in m.distributions() if d.metadata["Name"].lower()==name), True) for name in absent)'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.builder-repository"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "${IMAGE_VERSION}"
@@ -341,43 +357,46 @@ jobs:
                 digest: {sha256: $subject_digest}
               }]
             ' "${statement_file}" >/dev/null
-          jq -e '[.. | objects | select(
-            .name? == "vitest" and .versionInfo? == "4.1.11"
-          )] | length > 0' "${sbom_file}" >/dev/null
-          jq -e '[.. | objects | select(
-            .name? == "@vitest/mocker" and .versionInfo? == "4.1.11"
-          )] | length > 0' "${sbom_file}" >/dev/null
-          for package_spec in anyio:4.14.2 h2:4.4.1 hpack:4.2.0 httpcore2:2.12.0 httpx2:2.12.0; do
+          for package_spec in vitest:4.1.11 @vitest/mocker:4.1.11 anyio:4.14.2 h2:4.4.1 hpack:4.2.0 httpcore2:2.12.0 httpx2:2.12.0; do
             package_name="${package_spec%%:*}"
             package_version="${package_spec#*:}"
             jq -e --arg name "${package_name}" --arg version "${package_version}" \
-              '[.. | objects | select(.name? == $name and .versionInfo? == $version)] | length > 0' \
+              '[.. | objects | select(.name? == $name and (.versionInfo? | type) == "string") | .versionInfo] as $versions
+               | ($versions | length) > 0 and all($versions[]; . == $version)' \
               "${sbom_file}" >/dev/null
           done
 
       - name: Remove the unverified bootstrap placeholder
         env:
           GH_TOKEN: ${{ github.token }}
+          PUBLISHED_DIGEST: ${{ steps.build.outputs.digest }}
+          BOOTSTRAP_VERSION_ID: ${{ steps.destination.outputs.bootstrap_version_id }}
         run: |
           set -euo pipefail
-          mapfile -t bootstrap_version_ids < <(
-            gh api --paginate \
-              "/users/wmorin/packages/container/${PACKAGE_NAME}/versions?per_page=100" \
-              --jq '.[] | select((.metadata.container.tags // []) | index("bootstrap")) | .id'
-          )
-          if test "${#bootstrap_version_ids[@]}" -ne 1; then
-            echo "Expected exactly one bootstrap package version, found ${#bootstrap_version_ids[@]}" >&2
-            exit 1
-          fi
+          index_file="$(mktemp)"
+          versions_file="$(mktemp)"
+          trap 'unlink "${index_file}" "${versions_file}" 2>/dev/null || true' EXIT
           gh api --method DELETE \
-            "/users/wmorin/packages/container/${PACKAGE_NAME}/versions/${bootstrap_version_ids[0]}"
-          if gh api --paginate \
-              "/users/wmorin/packages/container/${PACKAGE_NAME}/versions?per_page=100" \
-              --jq '.[] | select((.metadata.container.tags // []) | index("bootstrap")) | .id' \
-              | grep -q .; then
-            echo 'Bootstrap package version still exists after deletion' >&2
-            exit 1
-          fi
+            "/users/wmorin/packages/container/${PACKAGE_NAME}/versions/${BOOTSTRAP_VERSION_ID}"
+          docker buildx imagetools inspect "${IMAGE_NAME}@${PUBLISHED_DIGEST}" --raw >"${index_file}"
+          gh api --paginate --slurp \
+            "/users/wmorin/packages/container/${PACKAGE_NAME}/versions?per_page=100" \
+            >"${versions_file}"
+          allowed_digests="$(jq -c --arg root "${PUBLISHED_DIGEST}" \
+            '[$root] + [.manifests[].digest]' "${index_file}")"
+          jq -e \
+            --argjson allowed "${allowed_digests}" \
+            --arg root "${PUBLISHED_DIGEST}" \
+            --arg tag "build-${GITHUB_SHA}" \
+            '
+              add as $versions
+              | ($versions | length) > 0
+                and all($versions[]; .name as $digest | $allowed | index($digest) != null)
+                and ([ $versions[] | select((.metadata.container.tags // []) | length > 0) ] | length) == 1
+                and any($versions[];
+                  .name == $root and .metadata.container.tags == [$tag]
+                )
+            ' "${versions_file}" >/dev/null
           test "$(gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" --jq .visibility)" = private
 
       - name: Report verified identity

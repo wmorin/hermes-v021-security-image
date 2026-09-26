@@ -12,7 +12,7 @@ readonly BASE_WEB_PACKAGE_SHA256='884fec6f6a1a3c4293be5192ed492a1aaac7acfe7cd9e6
 readonly BASE_PYPROJECT_SHA256='6f969b9fdff95e7269ec808361e3ae8be5357036e6257e53a3306878cf8c41dd'
 readonly BASE_LAZY_DEPS_SHA256='9f5261f97e1b1a96b0211eb5e23360a03143972fc52e6db9c1bfeb65cbf8e01d'
 readonly BASE_UV_LOCK_SHA256='5b3798f326209475abca8ef7cbf7c9406f12e687c28c0b540dfe597466f48590'
-readonly PATCHED_DOCKERFILE_SHA256='e88a91aefd19d4e704048b1bb728c76595d9a5885a9690e085f68c9a425e8141'
+readonly PATCHED_DOCKERFILE_SHA256='233da765c95a56197faccf00620d3ba35f669d93628db6c25710b40cf8ed92d7'
 readonly PATCHED_PACKAGE_JSON_SHA256='307fbe666a374fe939959a8b9a3838045cc2882286dac0af8d2da2743111ae8b'
 readonly PATCHED_PACKAGE_LOCK_SHA256='2d25e4f7b89c42c14c2f2f8d069e050fdc4148cad7c0f12b31dac4c573c365cf'
 readonly PATCHED_DESKTOP_PACKAGE_SHA256='d5db84883af4d31e2b93cba6d9baad74cc5d45c53213daccae3f406df76a5650'
@@ -22,7 +22,7 @@ readonly PATCHED_WEB_PACKAGE_SHA256='b4a35cfe99b09d3c04137c2b0c4a3c288b97cd0f7c4
 readonly PATCHED_PYPROJECT_SHA256='e36ac3fdccb60970d4e324b05c7f98c4cd1fe8ff7a6e4dd9cc6d4e2801aedb71'
 readonly PATCHED_LAZY_DEPS_SHA256='c2bb3f2882fc5d43d7c10f758cc11b326b3a64d9d6f6fc5aef1bb821844b7fc5'
 readonly PATCHED_UV_LOCK_SHA256='dd7ce98a5fa8090673536a441e87f1f99e266693050435a2587227bdf8d7ce60'
-readonly SECURITY_PATCH_SHA256='70727d75c2c2bf99f8e9d16c98f095a5b28bdc589356463e6eddac6a5ad7eacf'
+readonly SECURITY_PATCH_SHA256='54bd5dc93bafb651923776425429f56cb30afdc591f5439060e2e684ee3f6622'
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 readonly SECURITY_PATCH="${SCRIPT_DIR}/security-manifests.patch"
@@ -93,7 +93,9 @@ dockerfile = pathlib.Path("Dockerfile").read_text(encoding="utf-8")
 assert "debian:13@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c" in dockerfile
 assert "node:26-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2" in dockerfile
 assert "uv:0.12.19-python3.13-trixie@sha256:dbc39f05b15187083adc7d2ad7d7bb40f3227f1bfed39f428d73d7493fdc43fe" in dockerfile
-print("security_patch=vitest-4.1.11,anyio-4.14.2,h2-4.4.1,hpack-4.2.0,httpx2-httpcore2-2.12.0,pinned-runtime-bases")
+assert dockerfile.count("http://snapshot.debian.org/archive/debian/20260925T000000Z") == 2
+assert dockerfile.count("http://snapshot.debian.org/archive/debian-security/20260925T000000Z") == 2
+print("security_patch=vitest-4.1.11,anyio-4.14.2,h2-4.4.1,hpack-4.2.0,httpx2-httpcore2-2.12.0,pinned-runtime-bases,debian-snapshot-20260925T000000Z")
 PY
 
 test "$(git status --porcelain=v1 --untracked-files=all)" = $' M Dockerfile\n M apps/desktop/package.json\n M package-lock.json\n M package.json\n M pyproject.toml\n M tests-js/package.json\n M tools/lazy_deps.py\n M ui-tui/package.json\n M uv.lock\n M web/package.json'
