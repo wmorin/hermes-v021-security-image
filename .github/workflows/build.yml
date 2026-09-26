@@ -187,36 +187,40 @@ jobs:
           provenance: mode=max
           sbom: true
 
-      - name: Verify package visibility and anonymous-pull behavior
+      - name: Prove the published digest remains private
         env:
           GH_TOKEN: ${{ github.token }}
           PUBLISHED_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
           package_visibility="$(gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" --jq .visibility)"
-          case "${package_visibility}" in
-            private|public) ;;
-            *) echo "Unexpected package visibility: ${package_visibility}" >&2; exit 1 ;;
-          esac
-          anonymous_token="$({
+          test "${package_visibility}" = private
+
+          anonymous_token="$(
             curl --fail --silent --show-error \
-              "https://ghcr.io/token?service=ghcr.io&scope=repository:wmorin/${PACKAGE_NAME}:pull" || true
-          } | jq -r '.token // empty')"
-          anonymous_pull=denied
-          if test -n "${anonymous_token}" && curl --fail --silent --show-error \
+              "https://ghcr.io/token?service=ghcr.io&scope=repository:wmorin/${PACKAGE_NAME}:pull" \
+              | jq -er .token
+          )"
+          manifest_status="$(
+            curl --silent --show-error \
+              --output /dev/null \
+              --write-out '%{http_code}' \
               -H "Authorization: Bearer ${anonymous_token}" \
               -H 'Accept: application/vnd.oci.image.index.v1+json' \
-              "https://ghcr.io/v2/wmorin/${PACKAGE_NAME}/manifests/${PUBLISHED_DIGEST}" \
-              >/dev/null 2>&1; then
-            anonymous_pull=allowed
-          fi
-          if test "${package_visibility}:${anonymous_pull}" != private:denied && \
-             test "${package_visibility}:${anonymous_pull}" != public:allowed; then
-            echo "Visibility/pull mismatch: ${package_visibility}:${anonymous_pull}" >&2
+              "https://ghcr.io/v2/wmorin/${PACKAGE_NAME}/manifests/${PUBLISHED_DIGEST}"
+          )"
+          case "${manifest_status}" in
+            401|403) ;;
+            *)
+              echo "Anonymous manifest request returned HTTP ${manifest_status}, expected 401 or 403" >&2
+              exit 1
+              ;;
+          esac
+          if test "$(gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" --jq .visibility)" != private; then
+            echo 'Package visibility changed during the anonymous-pull check' >&2
             exit 1
           fi
-          printf 'package_visibility=%s anonymous_pull=%s\n' \
-            "${package_visibility}" "${anonymous_pull}"
+          printf 'package_visibility=private anonymous_manifest_status=%s\n' "${manifest_status}"
 
       - name: Verify the exact published digest
         env:
@@ -350,6 +354,31 @@ jobs:
               '[.. | objects | select(.name? == $name and .versionInfo? == $version)] | length > 0' \
               "${sbom_file}" >/dev/null
           done
+
+      - name: Remove the unverified bootstrap placeholder
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t bootstrap_version_ids < <(
+            gh api --paginate \
+              "/users/wmorin/packages/container/${PACKAGE_NAME}/versions?per_page=100" \
+              --jq '.[] | select((.metadata.container.tags // []) | index("bootstrap")) | .id'
+          )
+          if test "${#bootstrap_version_ids[@]}" -ne 1; then
+            echo "Expected exactly one bootstrap package version, found ${#bootstrap_version_ids[@]}" >&2
+            exit 1
+          fi
+          gh api --method DELETE \
+            "/users/wmorin/packages/container/${PACKAGE_NAME}/versions/${bootstrap_version_ids[0]}"
+          if gh api --paginate \
+              "/users/wmorin/packages/container/${PACKAGE_NAME}/versions?per_page=100" \
+              --jq '.[] | select((.metadata.container.tags // []) | index("bootstrap")) | .id' \
+              | grep -q .; then
+            echo 'Bootstrap package version still exists after deletion' >&2
+            exit 1
+          fi
+          test "$(gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" --jq .visibility)" = private
 
       - name: Report verified identity
         run: |

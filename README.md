@@ -33,10 +33,14 @@ The workflow publishes directly to the version-specific final package
 `ghcr.io/wmorin/hermes-v0215-security-image`. Before the workflow can publish,
 that package must be created by a command-line bootstrap push and its GitHub
 visibility must be verified as private. This avoids a first GitHub Actions push
-inheriting the public builder repository's visibility. After publication, the
-workflow records the actual visibility, proves the matching anonymous-pull
-behavior, and verifies the exact digest, SBOM, structural source provenance,
-and provenance subject. It refuses to publish unless the existing destination
+inheriting the public builder repository's visibility. The bootstrap image must
+carry only the `bootstrap` tag. After publication, the workflow requires the
+package to remain private, requires an anonymous manifest request to return an
+explicit authorization denial, and verifies the exact digest, Trivy result,
+SBOM, structural source provenance, and provenance subject. Only after every
+verification passes does it delete the single `bootstrap` package version and
+prove that the package is still private. Public promotion is a separate manual
+release action; the workflow refuses to publish unless the existing destination
 package is private.
 
 The image has only a commit-addressed `build-<builder SHA>` discovery tag. It
