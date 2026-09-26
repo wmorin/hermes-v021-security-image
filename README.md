@@ -9,14 +9,16 @@ sources.
 - Patched dependencies: `vitest` / `@vitest/mocker` 4.1.11,
   `anyio` 4.14.2, `h2` 4.4.1, `hpack` 4.2.0, and
   `httpx2` / `httpcore2` 2.12.0.
-- Pinned build inputs: Debian 13 index
-  `sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c`,
-  Node 26 Bookworm Slim index
+- Pinned build inputs: Node 26 Bookworm Slim index
   `sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2`,
-  and uv 0.12.19 index
+  and uv 0.12.19 Python 3.13 Trixie index (also the runtime base)
   `sha256:dbc39f05b15187083adc7d2ad7d7bb40f3227f1bfed39f428d73d7493fdc43fe`.
 - Debian packages are resolved only from the dated Debian and Debian Security
-  snapshots at `20260925T000000Z`; `apt-get upgrade` does not use mutable mirrors.
+  HTTPS snapshots at `20260925T000000Z`; `apt-get upgrade` does not use mutable
+  mirrors. TLS bootstraps from the SHA-256-verified CA bundle already present
+  in the digest-pinned uv base.
+- Unused global Python packages and the uv build cache are removed from the
+  runtime image; Hermes runs exclusively from its sealed virtual environment.
 - Platform: `linux/amd64`.
 
 The upstream release tag is unsigned. This builder therefore pins the resolved

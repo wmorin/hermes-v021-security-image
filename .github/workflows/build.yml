@@ -20,7 +20,7 @@ env:
   IMAGE_VERSION: v0.21.5-security.1
   UPSTREAM_SOURCE: https://github.com/NousResearch/hermes-agent
   UPSTREAM_REVISION: f97608f178d1ffeca59860195ab7da295f7c8e5f
-  SECURITY_PATCH_SHA256: 54bd5dc93bafb651923776425429f56cb30afdc591f5439060e2e684ee3f6622
+  SECURITY_PATCH_SHA256: d7273a55464531aa39361d7bc64a6a069f544fef9e2bb4d8b12367de7517aa51
 
 jobs:
   build-test:
@@ -88,6 +88,8 @@ jobs:
             'cd /opt/hermes && npm ls vitest@4.1.11 @vitest/mocker@4.1.11 --all'
           docker run --rm --entrypoint /opt/hermes/.venv/bin/python hermes-v0215-security:test -c \
             'import importlib.metadata as m; expected={"anyio":"4.14.2","httpcore2":"2.12.0","httpx2":"2.12.0"}; actual={name:m.version(name) for name in expected}; print(actual); assert actual == expected; absent=("h2","hpack"); assert all(next((False for d in m.distributions() if d.metadata["Name"].lower()==name), True) for name in absent)'
+          docker run --rm --entrypoint sh hermes-v0215-security:test -c \
+            'test ! -e /root/.cache/uv && test ! -e /usr/local/lib/python3.13/site-packages && test "$(grep -c "^URIs: https://snapshot.debian.org/archive/" /etc/apt/sources.list.d/debian.sources)" = 2'
           test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "io.wmorin.hermes.builder-repository"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
           test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
           test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
@@ -250,6 +252,8 @@ jobs:
             'cd /opt/hermes && npm ls vitest@4.1.11 @vitest/mocker@4.1.11 --all'
           docker run --rm --entrypoint /opt/hermes/.venv/bin/python "${PUBLISHED_IMAGE}" -c \
             'import importlib.metadata as m; expected={"anyio":"4.14.2","httpcore2":"2.12.0","httpx2":"2.12.0"}; actual={name:m.version(name) for name in expected}; print(actual); assert actual == expected; absent=("h2","hpack"); assert all(next((False for d in m.distributions() if d.metadata["Name"].lower()==name), True) for name in absent)'
+          docker run --rm --entrypoint sh "${PUBLISHED_IMAGE}" -c \
+            'test ! -e /root/.cache/uv && test ! -e /usr/local/lib/python3.13/site-packages && test "$(grep -c "^URIs: https://snapshot.debian.org/archive/" /etc/apt/sources.list.d/debian.sources)" = 2'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.builder-repository"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "${IMAGE_VERSION}"
