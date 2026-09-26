@@ -1,8 +1,53 @@
+diff --git a/Dockerfile b/Dockerfile
+index ba9cbe8724..3945a245ec 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -2,10 +2,11 @@
+ # corruption bug. Build a pinned shared library for the runtime image instead
+ # of relying on a distro backport that trixie does not currently provide.
+ # See #70480 and https://sqlite.org/wal.html#walresetbug.
+-FROM debian:13.4 AS sqlite_build
++FROM debian:13@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c AS sqlite_build
+ ARG SQLITE_AUTOCONF_VERSION=3530400
+ ARG SQLITE_SHA256=0e9483900e92cd5de8fd48d16bf9200145a61f7fd5be542a5ac81d8a9516eb9c
+ RUN apt-get -o Acquire::Retries=3 update && \
++    DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 upgrade -y && \
+     apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+         build-essential ca-certificates curl && \
+     rm -rf /var/lib/apt/lists/* && \
+@@ -40,7 +41,7 @@ RUN apt-get -o Acquire::Retries=3 update && \
+     make -j"$(nproc)" && \
+     make install
+ 
+-FROM ghcr.io/astral-sh/uv:0.11.6-python3.13-trixie@sha256:b3c543b6c4f23a5f2df22866bd7857e5d304b67a564f4feab6ac22044dde719b AS uv_source
++FROM ghcr.io/astral-sh/uv:0.12.19-python3.13-trixie@sha256:dbc39f05b15187083adc7d2ad7d7bb40f3227f1bfed39f428d73d7493fdc43fe AS uv_source
+ # Node 26 source stage. Debian trixie's bundled nodejs is pinned to 20.x
+ # which reached EOL in April 2026 — we copy node + npm from the upstream
+ # node:26 image instead (Hermes pins its toolchain to Node 26 everywhere).
+@@ -48,8 +49,8 @@ FROM ghcr.io/astral-sh/uv:0.11.6-python3.13-trixie@sha256:b3c543b6c4f23a5f2df228
+ # against glibc 2.36, which runs cleanly on our Debian 13 (trixie, glibc
+ # 2.41) runtime.  Bumping to a new Node major is a one-line ARG change; see
+ # #4977.
+-FROM node:26-bookworm-slim@sha256:9e6f9357d371591e32ab6f2d8a26d63bdd0d17c29eee3f4f3e7e454d9634bf73 AS node_source
+-FROM debian:13.4
++FROM node:26-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2 AS node_source
++FROM debian:13@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
+ 
+ # Disable Python stdout buffering to ensure logs are printed immediately.
+ # Do not write .pyc files at runtime: /opt/hermes is immutable in the
+@@ -69,6 +70,7 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/opt/hermes/.playwright
+ # zombies non-blockingly on SIGCHLD and additionally supervises the main
+ # hermes process, the dashboard, and per-profile gateways.
+ RUN apt-get -o Acquire::Retries=3 update && \
++    DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 upgrade -y && \
+     apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+     ca-certificates curl iputils-ping python3 python-is-python3 ripgrep ffmpeg gcc g++ make cmake python3-dev python3-venv libffi-dev libolm-dev libatomic1 procps git openssh-client docker-cli xz-utils && \
+     rm -rf /var/lib/apt/lists/*
 diff --git a/apps/desktop/package.json b/apps/desktop/package.json
-index b21be619de..e7c437a6c1 100644
+index 46fd736c05..2e9f03a849 100644
 --- a/apps/desktop/package.json
 +++ b/apps/desktop/package.json
-@@ -184,7 +184,7 @@
+@@ -187,7 +187,7 @@
      "tsx": "4.23.1",
      "typescript": "6.0.3",
      "vite": "8.2.0",
@@ -12,19 +57,10 @@ index b21be619de..e7c437a6c1 100644
    },
    "build": {
 diff --git a/package-lock.json b/package-lock.json
-index eaf154d450..76d97e5297 100644
+index 0970a7e8dd..8c66dc7ecf 100644
 --- a/package-lock.json
 +++ b/package-lock.json
-@@ -31,7 +31,7 @@
-     },
-     "apps/bootstrap-installer": {
-       "name": "@hermes/bootstrap-installer",
--      "version": "0.0.1",
-+      "version": "0.21.1",
-       "dependencies": {
-         "@nous-research/ui": "0.18.2",
-         "@tailwindcss/typography": "0.5.20",
-@@ -169,7 +169,7 @@
+@@ -174,7 +174,7 @@
          "tsx": "4.23.1",
          "typescript": "6.0.3",
          "vite": "8.2.0",
@@ -33,7 +69,7 @@ index eaf154d450..76d97e5297 100644
          "wait-on": "9.0.10"
        },
        "engines": {
-@@ -2139,7 +2139,6 @@
+@@ -2144,7 +2144,6 @@
        "os": [
          "aix"
        ],
@@ -41,7 +77,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2156,7 +2155,6 @@
+@@ -2161,7 +2160,6 @@
        "os": [
          "android"
        ],
@@ -49,7 +85,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2173,7 +2171,6 @@
+@@ -2178,7 +2176,6 @@
        "os": [
          "android"
        ],
@@ -57,7 +93,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2190,7 +2187,6 @@
+@@ -2195,7 +2192,6 @@
        "os": [
          "android"
        ],
@@ -65,7 +101,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2207,7 +2203,6 @@
+@@ -2212,7 +2208,6 @@
        "os": [
          "darwin"
        ],
@@ -73,7 +109,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2224,7 +2219,6 @@
+@@ -2229,7 +2224,6 @@
        "os": [
          "darwin"
        ],
@@ -81,7 +117,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2241,7 +2235,6 @@
+@@ -2246,7 +2240,6 @@
        "os": [
          "freebsd"
        ],
@@ -89,7 +125,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2258,7 +2251,6 @@
+@@ -2263,7 +2256,6 @@
        "os": [
          "freebsd"
        ],
@@ -97,7 +133,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2275,7 +2267,6 @@
+@@ -2280,7 +2272,6 @@
        "os": [
          "linux"
        ],
@@ -105,7 +141,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2292,7 +2283,6 @@
+@@ -2297,7 +2288,6 @@
        "os": [
          "linux"
        ],
@@ -113,7 +149,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2309,7 +2299,6 @@
+@@ -2314,7 +2304,6 @@
        "os": [
          "linux"
        ],
@@ -121,7 +157,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2326,7 +2315,6 @@
+@@ -2331,7 +2320,6 @@
        "os": [
          "linux"
        ],
@@ -129,7 +165,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2343,7 +2331,6 @@
+@@ -2348,7 +2336,6 @@
        "os": [
          "linux"
        ],
@@ -137,7 +173,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2360,7 +2347,6 @@
+@@ -2365,7 +2352,6 @@
        "os": [
          "linux"
        ],
@@ -145,7 +181,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2377,7 +2363,6 @@
+@@ -2382,7 +2368,6 @@
        "os": [
          "linux"
        ],
@@ -153,7 +189,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2394,7 +2379,6 @@
+@@ -2399,7 +2384,6 @@
        "os": [
          "linux"
        ],
@@ -161,7 +197,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2411,7 +2395,6 @@
+@@ -2416,7 +2400,6 @@
        "os": [
          "linux"
        ],
@@ -169,7 +205,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2428,7 +2411,6 @@
+@@ -2433,7 +2416,6 @@
        "os": [
          "netbsd"
        ],
@@ -177,7 +213,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2445,7 +2427,6 @@
+@@ -2450,7 +2432,6 @@
        "os": [
          "netbsd"
        ],
@@ -185,7 +221,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2462,7 +2443,6 @@
+@@ -2467,7 +2448,6 @@
        "os": [
          "openbsd"
        ],
@@ -193,7 +229,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2479,7 +2459,6 @@
+@@ -2484,7 +2464,6 @@
        "os": [
          "openbsd"
        ],
@@ -201,7 +237,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2496,7 +2475,6 @@
+@@ -2501,7 +2480,6 @@
        "os": [
          "openharmony"
        ],
@@ -209,7 +245,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2513,7 +2491,6 @@
+@@ -2518,7 +2496,6 @@
        "os": [
          "sunos"
        ],
@@ -217,7 +253,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2530,7 +2507,6 @@
+@@ -2535,7 +2512,6 @@
        "os": [
          "win32"
        ],
@@ -225,7 +261,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2547,7 +2523,6 @@
+@@ -2552,7 +2528,6 @@
        "os": [
          "win32"
        ],
@@ -233,7 +269,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -2564,7 +2539,6 @@
+@@ -2569,7 +2544,6 @@
        "os": [
          "win32"
        ],
@@ -241,7 +277,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": ">=18"
        }
-@@ -7230,16 +7204,16 @@
+@@ -7251,16 +7225,16 @@
        }
      },
      "node_modules/@vitest/expect": {
@@ -263,7 +299,7 @@ index eaf154d450..76d97e5297 100644
          "chai": "^6.2.2",
          "tinyrainbow": "^3.1.0"
        },
-@@ -7248,13 +7222,13 @@
+@@ -7269,13 +7243,13 @@
        }
      },
      "node_modules/@vitest/mocker": {
@@ -281,7 +317,7 @@ index eaf154d450..76d97e5297 100644
          "estree-walker": "^3.0.3",
          "magic-string": "^0.30.21"
        },
-@@ -7275,9 +7249,9 @@
+@@ -7296,9 +7270,9 @@
        }
      },
      "node_modules/@vitest/pretty-format": {
@@ -294,7 +330,7 @@ index eaf154d450..76d97e5297 100644
        "dev": true,
        "license": "MIT",
        "dependencies": {
-@@ -7288,13 +7262,13 @@
+@@ -7309,13 +7283,13 @@
        }
      },
      "node_modules/@vitest/runner": {
@@ -312,7 +348,7 @@ index eaf154d450..76d97e5297 100644
          "pathe": "^2.0.3"
        },
        "funding": {
-@@ -7302,14 +7276,14 @@
+@@ -7323,14 +7297,14 @@
        }
      },
      "node_modules/@vitest/snapshot": {
@@ -332,7 +368,7 @@ index eaf154d450..76d97e5297 100644
          "magic-string": "^0.30.21",
          "pathe": "^2.0.3"
        },
-@@ -7318,9 +7292,9 @@
+@@ -7339,9 +7313,9 @@
        }
      },
      "node_modules/@vitest/spy": {
@@ -345,7 +381,7 @@ index eaf154d450..76d97e5297 100644
        "dev": true,
        "license": "MIT",
        "funding": {
-@@ -7328,13 +7302,13 @@
+@@ -7349,13 +7323,13 @@
        }
      },
      "node_modules/@vitest/utils": {
@@ -363,115 +399,7 @@ index eaf154d450..76d97e5297 100644
          "convert-source-map": "^2.0.0",
          "tinyrainbow": "^3.1.0"
        },
-@@ -8027,9 +8001,9 @@
-       "license": "MIT"
-     },
-     "node_modules/baseline-browser-mapping": {
--      "version": "2.10.43",
--      "resolved": "https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.10.43.tgz",
--      "integrity": "sha512-AjYpR78kDWAY3Efj+cDTFH9t9SCoL7OoTp1BOb0mQV7S+6CiLwnWM3FyxhJtdPufDFKzmCSFoUncKjWgJEZTCQ==",
-+      "version": "2.11.21",
-+      "resolved": "https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.11.21.tgz",
-+      "integrity": "sha512-uh8vpY/1/YyFkunIDFH/12p7/7VdPKA1hejMVEbdkEaWnUz0Hesvx5EbiU6XxjyHZIOju+ZMbQJkRh+es3/spQ==",
-       "dev": true,
-       "license": "Apache-2.0",
-       "bin": {
-@@ -8094,9 +8068,9 @@
-       }
-     },
-     "node_modules/browserslist": {
--      "version": "4.28.6",
--      "resolved": "https://registry.npmjs.org/browserslist/-/browserslist-4.28.6.tgz",
--      "integrity": "sha512-FQBYNK15VMslhLHpA7+n+n1GOlF1kId2xcCg7/j95f24AOF6VDYMNH4mFxF7KuaTdv627faazpOAjFzMrfJOUw==",
-+      "version": "4.28.8",
-+      "resolved": "https://registry.npmjs.org/browserslist/-/browserslist-4.28.8.tgz",
-+      "integrity": "sha512-V2NpofLblG64mfOtSgDhOJESZEGogzDMBv/q+W6oc4LXWP/q75eOXoOaaOu1EOadB9U4Bwx/e0yzbvwKH8zalA==",
-       "dev": true,
-       "funding": [
-         {
-@@ -8114,11 +8088,11 @@
-       ],
-       "license": "MIT",
-       "dependencies": {
--        "baseline-browser-mapping": "^2.10.42",
--        "caniuse-lite": "^1.0.30001803",
--        "electron-to-chromium": "^1.5.389",
--        "node-releases": "^2.0.51",
--        "update-browserslist-db": "^1.2.3"
-+        "baseline-browser-mapping": "^2.11.12",
-+        "caniuse-lite": "^1.0.30001809",
-+        "electron-to-chromium": "^1.5.402",
-+        "node-releases": "^2.0.53",
-+        "update-browserslist-db": "^1.3.0"
-       },
-       "bin": {
-         "browserslist": "cli.js"
-@@ -8427,9 +8401,9 @@
-       }
-     },
-     "node_modules/caniuse-lite": {
--      "version": "1.0.30001806",
--      "resolved": "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001806.tgz",
--      "integrity": "sha512-72Cuvd95zbSYPKq6Fhg8eDJRlzgWDf7/mtoZv6Qe/DYNCEBdNxoA3+rZAU2ZhGCpZlns3EssFavaZomckT5Uuw==",
-+      "version": "1.0.30001810",
-+      "resolved": "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001810.tgz",
-+      "integrity": "sha512-TITQPUkaz+aVk5GL6NhOdwk1aEaNTSDPsGFWrTuhKGtjTF70jL/Oht2W4c6rXUe5fu7Ie19VIahAXHIIiWWNeg==",
-       "dev": true,
-       "funding": [
-         {
-@@ -8731,9 +8705,9 @@
-       }
-     },
-     "node_modules/colord": {
--      "version": "2.9.3",
--      "resolved": "https://registry.npmjs.org/colord/-/colord-2.9.3.tgz",
--      "integrity": "sha512-jeC1axXpnb0/2nn/Y1LPuLdgXBLH7aDcHu4KEKfqw3CUhX7ZpfBSlPKyqXE6btIgEzfWtrX3/tyBCaCvXvMkOw==",
-+      "version": "2.9.4",
-+      "resolved": "https://registry.npmjs.org/colord/-/colord-2.9.4.tgz",
-+      "integrity": "sha512-z0nTt5300AIviCn9FTEL4G2DzPkfEDfghx6Do0ZfM3u0rOINBtfw2H8lD4VXyZF/o8HTzzyiCztaG2X/+IMeZA==",
-       "license": "MIT"
-     },
-     "node_modules/combined-stream": {
-@@ -10319,9 +10293,9 @@
-       }
-     },
-     "node_modules/electron-to-chromium": {
--      "version": "1.5.393",
--      "resolved": "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.393.tgz",
--      "integrity": "sha512-kiDJdIUawuEIcp9XoICKp1iTYDEbgguIPq526N1Q7jIQDeQ3CqoMx71025PI/7E48Ddtw2HuWsVjY7afEgNxmg==",
-+      "version": "1.5.422",
-+      "resolved": "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.422.tgz",
-+      "integrity": "sha512-UvA/32XqrLDdZSn7Jllo1AYNcWji/G0d5M0GTViE7KoGBiMunw3a34Sb2KO4ZZyrSEhqsxFoVhWWJshdyfKqJA==",
-       "dev": true,
-       "license": "ISC"
-     },
-@@ -15129,9 +15103,9 @@
-       }
-     },
-     "node_modules/node-releases": {
--      "version": "2.0.51",
--      "resolved": "https://registry.npmjs.org/node-releases/-/node-releases-2.0.51.tgz",
--      "integrity": "sha512-wRNIrw4DmVLKQlbgOMdkMx27Wrpzes2hh5Jtbi2bjPd+4wJstWIqP5A+lscnqbm0xxmT5Bpg8Lec5ItEBwx6BQ==",
-+      "version": "2.0.54",
-+      "resolved": "https://registry.npmjs.org/node-releases/-/node-releases-2.0.54.tgz",
-+      "integrity": "sha512-YHs7BmmcsdAI5Ozuf8JZo6PT0mv2GIWC9vMfvUC3dp65M8hn7Ux8CPL+2oBI7juNuj9d0ndhTcznq2ODBps9cQ==",
-       "dev": true,
-       "license": "MIT",
-       "engines": {
-@@ -16883,9 +16857,9 @@
-       }
-     },
-     "node_modules/sanitize-html": {
--      "version": "2.17.6",
--      "resolved": "https://registry.npmjs.org/sanitize-html/-/sanitize-html-2.17.6.tgz",
--      "integrity": "sha512-M4bo9tfv1yfhQZZKkc6dL07ALrGJtfvNOuhX3hU9AVPR/uPQ+nKOJBqTYc7LfMQblTW04mtSWDJWEyLvygJsLA==",
-+      "version": "2.17.7",
-+      "resolved": "https://registry.npmjs.org/sanitize-html/-/sanitize-html-2.17.7.tgz",
-+      "integrity": "sha512-PGtEkc9cbnedU3s9TmzDbpsZ8w086g/0Q8k8/oIO1NLNU3i5k9yn835CrjJSajp1KMmkisbO1qPXxNKO3welAg==",
-       "license": "MIT",
-       "dependencies": {
-         "deepmerge": "^4.2.2",
-@@ -17877,9 +17851,9 @@
+@@ -17909,9 +17883,9 @@
        }
      },
      "node_modules/tinyrainbow": {
@@ -484,7 +412,7 @@ index eaf154d450..76d97e5297 100644
        "dev": true,
        "license": "MIT",
        "engines": {
-@@ -18049,7 +18023,6 @@
+@@ -18081,7 +18055,6 @@
        "os": [
          "darwin"
        ],
@@ -492,20 +420,7 @@ index eaf154d450..76d97e5297 100644
        "engines": {
          "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
        }
-@@ -18370,9 +18343,9 @@
-       }
-     },
-     "node_modules/update-browserslist-db": {
--      "version": "1.2.3",
--      "resolved": "https://registry.npmjs.org/update-browserslist-db/-/update-browserslist-db-1.2.3.tgz",
--      "integrity": "sha512-Js0m9cx+qOgDxo0eMiFGEueWztz+d4+M3rGlmKPT+T4IS/jP4ylw3Nwpu6cpTTP8R1MAC1kF4VbdLt3ARf209w==",
-+      "version": "1.3.2",
-+      "resolved": "https://registry.npmjs.org/update-browserslist-db/-/update-browserslist-db-1.3.2.tgz",
-+      "integrity": "sha512-UQ+MSxlhRm1bzjhU+DcuXfjFO1FzNtqhK5+9Yvlp90ItDLk5vT932A0rFu619nf7RVS+Y/VeaUW1jaRDqZ8VJw==",
-       "dev": true,
-       "funding": [
-         {
-@@ -18788,19 +18761,19 @@
+@@ -18820,19 +18793,19 @@
        }
      },
      "node_modules/vitest": {
@@ -535,7 +450,7 @@ index eaf154d450..76d97e5297 100644
          "es-module-lexer": "^2.0.0",
          "expect-type": "^1.3.0",
          "magic-string": "^0.30.21",
-@@ -18828,12 +18801,12 @@
+@@ -18860,12 +18833,12 @@
          "@edge-runtime/vm": "*",
          "@opentelemetry/api": "^1.9.0",
          "@types/node": "^20.0.0 || ^22.0.0 || >=24.0.0",
@@ -554,7 +469,7 @@ index eaf154d450..76d97e5297 100644
          "happy-dom": "*",
          "jsdom": "*",
          "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
-@@ -19459,7 +19432,7 @@
+@@ -19513,7 +19486,7 @@
          "@types/plist": "3.0.5",
          "plist": "3.1.1",
          "typescript": "6.0.3",
@@ -563,7 +478,7 @@ index eaf154d450..76d97e5297 100644
        }
      },
      "tests-js/node_modules/@xmldom/xmldom": {
-@@ -19507,7 +19480,7 @@
+@@ -19561,7 +19534,7 @@
          "prettier": "3.9.5",
          "tsx": "4.23.1",
          "typescript": "6.0.3",
@@ -572,7 +487,7 @@ index eaf154d450..76d97e5297 100644
        }
      },
      "ui-tui/node_modules/semver": {
-@@ -19606,7 +19579,7 @@
+@@ -19660,7 +19633,7 @@
          "three": "0.180.0",
          "typescript": "6.0.3",
          "vite": "8.2.0",
@@ -582,23 +497,51 @@ index eaf154d450..76d97e5297 100644
      },
      "web/node_modules/@babel/code-frame": {
 diff --git a/package.json b/package.json
-index 406b73b205..10f093b3d4 100644
+index 406b73b205..0fff512cca 100644
 --- a/package.json
 +++ b/package.json
-@@ -56,7 +56,12 @@
+@@ -56,7 +56,9 @@
      "undici@^6": "6.28.0",
      "undici@^7": "7.29.0",
      "postcss": "8.5.23",
 -    "tar": "7.5.22"
 +    "tar": "7.5.22",
-+    "browserslist": "4.28.8",
-+    "sanitize-html": "2.17.7",
 +    "vitest": "4.1.11",
-+    "@vitest/mocker": "4.1.11",
-+    "colord": "2.9.4"
++    "@vitest/mocker": "4.1.11"
    },
    "engines": {
      "node": "^22.22.0 || ^24.11.0 || >=26.0.0",
+diff --git a/pyproject.toml b/pyproject.toml
+index 1a98d5528c..18e58b4150 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -217,7 +217,7 @@ edge-tts = ["edge-tts==7.2.7"]
+ modal = ["modal==1.3.4"]
+ daytona = ["daytona==0.155.0"]
+ vercel = ["vercel==0.7.2"]
+-dev = ["debugpy==1.8.20", "pytest==9.1.1", "pytest-asyncio==1.3.0", "mcp==2.0.0", "httpx2==2.7.0", "starlette==1.3.1", "ty==0.0.21", "ruff==0.15.10", "setuptools==83.0.0"]  # starlette: CVE-2026-48710; setuptools: 83 (torch >=2.13 requires setuptools 83)
++dev = ["debugpy==1.8.20", "pytest==9.1.1", "pytest-asyncio==1.3.0", "mcp==2.0.0", "httpx2==2.12.0", "starlette==1.3.1", "ty==0.0.21", "ruff==0.15.10", "setuptools==83.0.0"]  # starlette: CVE-2026-48710; setuptools: 83 (torch >=2.13 requires setuptools 83)
+ messaging = ["python-telegram-bot[webhooks]==22.8", "discord.py[voice]==2.7.1", "aiohttp==3.14.3", "brotlicffi==1.2.0.2", "slack-bolt==1.30.0", "slack-sdk==3.44.1", "qrcode==7.4.2"]  # aiohttp 3.14.3: prior CVEs + GHSA-cq5v-8q36-5273/GHSA-mfx4-hv73-q22v/GHSA-mq44-7p77-q5h7
+ cron = []  # croniter is now a core dependency; this extra kept for back-compat
+ slack = ["slack-bolt==1.30.0", "slack-sdk==3.44.1", "aiohttp==3.14.3"]
+@@ -291,7 +291,7 @@ pty = []
+ # resolution. Hermes' own `httpx[socks]==0.28.1` in [dependencies] is
+ # unaffected — the two distributions install side by side under different
+ # module names.
+-mcp = ["mcp==2.0.0", "httpx2==2.7.0", "starlette==1.3.1"]  # starlette: CVE-2026-48710
++mcp = ["mcp==2.0.0", "httpx2==2.12.0", "starlette==1.3.1"]  # starlette: CVE-2026-48710
+ # Backwards-compatible no-op alias. Relay is a core dependency on supported
+ # wheel targets and intentionally unavailable on other platforms.
+ nemo-relay = []
+@@ -302,7 +302,7 @@ teams = ["microsoft-teams-apps==2.0.13.4", "aiohttp==3.14.3"]  # aiohttp 3.14.3:
+ # The cua-driver binary itself is installed via `hermes tools` post-setup
+ # (curl install script); this extra just pins the MCP client used to talk
+ # to it, which is already provided by the `mcp` extra.
+-computer-use = ["mcp==2.0.0", "httpx2==2.7.0", "starlette==1.3.1"]  # starlette: CVE-2026-48710
++computer-use = ["mcp==2.0.0", "httpx2==2.12.0", "starlette==1.3.1"]  # starlette: CVE-2026-48710
+ acp = ["agent-client-protocol==0.9.0"]
+ # mistral: Voxtral STT + TTS. Pinned to an exact verified-clean version.
+ # The `mistralai` PyPI project was quarantined 2026-05-12 after the malicious
 diff --git a/tests-js/package.json b/tests-js/package.json
 index 06d833ebb5..582616dfb6 100644
 --- a/tests-js/package.json
@@ -611,6 +554,19 @@ index 06d833ebb5..582616dfb6 100644
 +    "vitest": "4.1.11"
    }
  }
+diff --git a/tools/lazy_deps.py b/tools/lazy_deps.py
+index 303fcc0c13..c19e57824e 100644
+--- a/tools/lazy_deps.py
++++ b/tools/lazy_deps.py
+@@ -201,7 +201,7 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
+     # MCP client SDK for the cua-driver, so computer_use never dead-ends on `No module named 'mcp'`.
+     "tool.computer_use": (
+         "mcp==2.0.0",
+-        "httpx2==2.7.0",  # mcp 2.x HTTP stack — sync with pyproject [computer-use]
++        "httpx2==2.12.0",  # mcp 2.x HTTP stack — sync with pyproject [computer-use]
+         "starlette==1.3.1",
+     ),
+     # HF Agent Trace Viewer upload (hermes trace upload / /upload-trace). huggingface-hub is a SHARED
 diff --git a/ui-tui/package.json b/ui-tui/package.json
 index 977dbe4c35..b7e36b9ca7 100644
 --- a/ui-tui/package.json
@@ -623,6 +579,130 @@ index 977dbe4c35..b7e36b9ca7 100644
 +    "vitest": "4.1.11"
    }
  }
+diff --git a/uv.lock b/uv.lock
+index 852ac06d0e..82da5de5fc 100644
+--- a/uv.lock
++++ b/uv.lock
+@@ -442,15 +442,15 @@ wheels = [
+ 
+ [[package]]
+ name = "anyio"
+-version = "4.12.1"
++version = "4.14.2"
+ source = { registry = "https://pypi.org/simple" }
+ dependencies = [
+     { name = "idna" },
+     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+ ]
+-sdist = { url = "https://files.pythonhosted.org/packages/96/f0/5eb65b2bb0d09ac6776f2eb54adee6abe8228ea05b20a5ad0e4945de8aac/anyio-4.12.1.tar.gz", hash = "sha256:41cfcc3a4c85d3f05c932da7c26d0201ac36f72abd4435ba90d0464a3ffed703", size = 228685, upload-time = "2026-01-06T11:45:21.246Z" }
++sdist = { url = "https://files.pythonhosted.org/packages/61/cc/a381afa6efea9f496eff839d4a6a1aed3bfafc7b3ab4b0d1b243a12573dd/anyio-4.14.2.tar.gz", hash = "sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f", size = 260176, upload-time = "2026-07-12T20:29:07.082Z" }
+ wheels = [
+-    { url = "https://files.pythonhosted.org/packages/38/0e/27be9fdef66e72d64c0cdc3cc2823101b80585f8119b5c112c2e8f5f7dab/anyio-4.12.1-py3-none-any.whl", hash = "sha256:d405828884fc140aa80a3c667b8beed277f1dfedec42ba031bd6ac3db606ab6c", size = 113592, upload-time = "2026-01-06T11:45:19.497Z" },
++    { url = "https://files.pythonhosted.org/packages/da/35/f2287558c17e29fafc8ef3daf819bb9834061cfa43bff8014f7df7f63bdc/anyio-4.14.2-py3-none-any.whl", hash = "sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494", size = 125813, upload-time = "2026-07-12T20:29:05.763Z" },
+ ]
+ 
+ [[package]]
+@@ -1716,15 +1716,15 @@ wheels = [
+ 
+ [[package]]
+ name = "h2"
+-version = "4.3.0"
++version = "4.4.1"
+ source = { registry = "https://pypi.org/simple" }
+ dependencies = [
+     { name = "hpack" },
+     { name = "hyperframe" },
+ ]
+-sdist = { url = "https://files.pythonhosted.org/packages/1d/17/afa56379f94ad0fe8defd37d6eb3f89a25404ffc71d4d848893d270325fc/h2-4.3.0.tar.gz", hash = "sha256:6c59efe4323fa18b47a632221a1888bd7fde6249819beda254aeca909f221bf1", size = 2152026, upload-time = "2025-08-23T18:12:19.778Z" }
++sdist = { url = "https://files.pythonhosted.org/packages/e7/85/7c366e69d84c17bb778fe41419e1fbcce3033d5b7ce29bbffff0a98b859f/h2-4.4.1.tar.gz", hash = "sha256:4e866ffb1a869ae14dd9b5e6beb5c24a13da0495ad72b65925ded182521c1516", size = 2157281, upload-time = "2026-08-03T11:45:09.509Z" }
+ wheels = [
+-    { url = "https://files.pythonhosted.org/packages/69/b2/119f6e6dcbd96f9069ce9a2665e0146588dc9f88f29549711853645e736a/h2-4.3.0-py3-none-any.whl", hash = "sha256:c438f029a25f7945c69e0ccf0fb951dc3f73a5f6412981daee861431b70e2bdd", size = 61779, upload-time = "2025-08-23T18:12:17.779Z" },
++    { url = "https://files.pythonhosted.org/packages/7e/22/e85faf23bd72a92d1921e37d674ca56eb298a3c8be31fdecef0ff2b3aaac/h2-4.4.1-py3-none-any.whl", hash = "sha256:0e25f1462b23c9cb82d9eb02e28bc706dac2a68cb457c6a0d74d63c8a2a5d0e6", size = 62636, upload-time = "2026-08-03T11:44:59.164Z" },
+ ]
+ 
+ [[package]]
+@@ -2055,9 +2055,9 @@ requires-dist = [
+     { name = "httplib2", marker = "extra == 'google-chat'", specifier = "==0.32.0" },
+     { name = "httptools", specifier = ">=0.6.3,<0.9" },
+     { name = "httpx", extras = ["socks"], specifier = "==0.28.1" },
+-    { name = "httpx2", marker = "extra == 'computer-use'", specifier = "==2.7.0" },
+-    { name = "httpx2", marker = "extra == 'dev'", specifier = "==2.7.0" },
+-    { name = "httpx2", marker = "extra == 'mcp'", specifier = "==2.7.0" },
++    { name = "httpx2", marker = "extra == 'computer-use'", specifier = "==2.12.0" },
++    { name = "httpx2", marker = "extra == 'dev'", specifier = "==2.12.0" },
++    { name = "httpx2", marker = "extra == 'mcp'", specifier = "==2.12.0" },
+     { name = "jinja2", specifier = "==3.1.6" },
+     { name = "lark-oapi", marker = "extra == 'feishu'", specifier = "==1.6.8" },
+     { name = "markdown", specifier = "==3.10.2" },
+@@ -2168,11 +2168,11 @@ wheels = [
+ 
+ [[package]]
+ name = "hpack"
+-version = "4.1.0"
++version = "4.2.0"
+ source = { registry = "https://pypi.org/simple" }
+-sdist = { url = "https://files.pythonhosted.org/packages/2c/48/71de9ed269fdae9c8057e5a4c0aa7402e8bb16f2c6e90b3aa53327b113f8/hpack-4.1.0.tar.gz", hash = "sha256:ec5eca154f7056aa06f196a557655c5b009b382873ac8d1e66e79e87535f1dca", size = 51276, upload-time = "2025-01-22T21:44:58.347Z" }
++sdist = { url = "https://files.pythonhosted.org/packages/26/5b/fcabf6028144a8723726318b07a32c2f3314acdff6265743cf08a344b18e/hpack-4.2.0.tar.gz", hash = "sha256:0895cfa3b5531fc65fe439c05eb65144f123bf7a394fcaa56aa423548d8e45c0", size = 51300, upload-time = "2026-06-23T18:34:46.667Z" }
+ wheels = [
+-    { url = "https://files.pythonhosted.org/packages/07/c6/80c95b1b2b94682a72cbdbfb85b81ae2daffa4291fbfa1b1464502ede10d/hpack-4.1.0-py3-none-any.whl", hash = "sha256:157ac792668d995c657d93111f46b4535ed114f0c9c8d672271bbec7eae1b496", size = 34357, upload-time = "2025-01-22T21:44:56.92Z" },
++    { url = "https://files.pythonhosted.org/packages/71/b4/4a9fcfb2aef6ba44d9073ecd301443aa00b3dac95de5619f2a7de7ec8a91/hpack-4.2.0-py3-none-any.whl", hash = "sha256:858ac0b02280fa582b5080d68db0899c62a80375e0e5413a74970c5e518b6986", size = 34246, upload-time = "2026-06-23T18:34:45.472Z" },
+ ]
+ 
+ [[package]]
+@@ -2190,15 +2190,15 @@ wheels = [
+ 
+ [[package]]
+ name = "httpcore2"
+-version = "2.7.0"
++version = "2.12.0"
+ source = { registry = "https://pypi.org/simple" }
+ dependencies = [
+     { name = "h11" },
+     { name = "truststore" },
+ ]
+-sdist = { url = "https://files.pythonhosted.org/packages/d5/fe/6a3f9f1a8bb8733326140737446aaf72fddb8b54b8f202302f5c84960613/httpcore2-2.7.0.tar.gz", hash = "sha256:6dc0fedf329a52a990930a5579edfebaea81118ea700ea0dd7de2b5e5be49efc", size = 65593, upload-time = "2026-07-14T20:40:01.111Z" }
++sdist = { url = "https://files.pythonhosted.org/packages/be/ad/f4f0e57345f1870f3e8cb624e058d7eca6e5a27d33bcc3311d9b618734cd/httpcore2-2.12.0.tar.gz", hash = "sha256:9293522bba0aa7c4c8e9e3f040c16575bd8868e155a77fa30c7a9085a5eae648", size = 67548, upload-time = "2026-08-18T13:22:08.211Z" }
+ wheels = [
+-    { url = "https://files.pythonhosted.org/packages/6f/6c/62e2e279e63fc4f7a5ee841ef13175a8bbc613f258e9dcc186e9de803a42/httpcore2-2.7.0-py3-none-any.whl", hash = "sha256:1452f589fe23f55b44546cd884294c41a29330af902bc0b71a761fd52d18f92b", size = 81506, upload-time = "2026-07-14T20:39:58.053Z" },
++    { url = "https://files.pythonhosted.org/packages/d2/74/d370e55600d9bcfa0d9794b0166126d49291a3d2b20c268fc98c453a4948/httpcore2-2.12.0-py3-none-any.whl", hash = "sha256:7e04258ce01013d7d615e5b910a3b27fac937d7a95038227e79652b4ba3b4ceb", size = 83074, upload-time = "2026-08-18T13:22:05.854Z" },
+ ]
+ 
+ [[package]]
+@@ -2276,18 +2276,28 @@ wheels = [
+ 
+ [[package]]
+ name = "httpx2"
+-version = "2.7.0"
++version = "2.12.0"
+ source = { registry = "https://pypi.org/simple" }
+ dependencies = [
+-    { name = "anyio" },
+-    { name = "httpcore2" },
++    { name = "anyio", marker = "sys_platform != 'emscripten'" },
++    { name = "httpcore2", marker = "sys_platform != 'emscripten'" },
++    { name = "httpx2-jsfetch", marker = "python_full_version >= '3.12' and sys_platform == 'emscripten'" },
+     { name = "idna" },
+-    { name = "truststore" },
++    { name = "truststore", marker = "sys_platform != 'emscripten'" },
+     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+ ]
+-sdist = { url = "https://files.pythonhosted.org/packages/a3/4a/129b2e21b90ac2985d3928d96792bccc39bc6dfe796c5eee2d8ec06d4105/httpx2-2.7.0.tar.gz", hash = "sha256:8b30709aed5c8465b0dd3b95c09ce301c8f79e7e7a2d00ab0af551e0d0375b07", size = 94487, upload-time = "2026-07-14T20:40:02.318Z" }
++sdist = { url = "https://files.pythonhosted.org/packages/7f/f8/579a8b51e42e38ee32647df9f08aa25643ae788e275cc625b199829c4671/httpx2-2.12.0.tar.gz", hash = "sha256:7631fe9887a8a2275f4a2540e053aa670fcc50742864a9ae7c66e609fdcf12cf", size = 100040, upload-time = "2026-08-18T13:22:09.086Z" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/c8/95/411ba65569158e862368917aaf56597f3e5fa3b91b0502919638465a08f3/httpx2-2.12.0-py3-none-any.whl", hash = "sha256:cc8b6eecb8661c146b8f89a60e97456ee086e91a784ed31ac450c3a9e613dd36", size = 95427, upload-time = "2026-08-18T13:22:06.834Z" },
++]
++
++[[package]]
++name = "httpx2-jsfetch"
++version = "1.0"
++source = { registry = "https://pypi.org/simple" }
++sdist = { url = "https://files.pythonhosted.org/packages/cd/c4/0e5636363151a2a1795e0a77617168b9ca438e1748ec05fc9b5687f93d64/httpx2_jsfetch-1.0.tar.gz", hash = "sha256:70a0e3eabfef7cce5ad9c629f7d01ca05e418f586646f4ddf14782e4c1454c60", size = 6872, upload-time = "2026-08-07T00:13:07.492Z" }
+ wheels = [
+-    { url = "https://files.pythonhosted.org/packages/1d/b8/c341bba6411bdfda786020343c47a75ef472f6085caf82391b142b1a3ad9/httpx2-2.7.0-py3-none-any.whl", hash = "sha256:ed2a2719c696789e09493bd8e2bec3d8bd925cc6e26b68389ec25ade132f7bf4", size = 90234, upload-time = "2026-07-14T20:39:59.531Z" },
++    { url = "https://files.pythonhosted.org/packages/9b/43/832f631d32e4f1211caa2ba368317739fe71f0b8530e4c9d15dc454bac2a/httpx2_jsfetch-1.0-py3-none-any.whl", hash = "sha256:cb916b707601e69a07721aabc8f3f6659be3a6893bc1ff5c6f9e02241df2da32", size = 6382, upload-time = "2026-08-07T00:13:06.567Z" },
+ ]
+ 
+ [[package]]
 diff --git a/web/package.json b/web/package.json
 index 74b5f3cb8b..1f94992579 100644
 --- a/web/package.json

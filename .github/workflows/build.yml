@@ -1,4 +1,4 @@
-name: Build Hermes v0.21.3 security image
+name: Build Hermes v0.21.5 security image
 
 on:
   pull_request:
@@ -10,18 +10,17 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: hermes-v0213-security-${{ github.ref }}
+  group: hermes-v0215-security-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   DOCKER_BUILD_RECORD_UPLOAD: false
-  IMAGE_NAME: ghcr.io/wmorin/hermes-v0213-security-image
-  PACKAGE_NAME: hermes-v0213-security-image
-  IMAGE_VERSION: v0.21.3-security.1
+  IMAGE_NAME: ghcr.io/wmorin/hermes-v0215-security-image
+  PACKAGE_NAME: hermes-v0215-security-image
+  IMAGE_VERSION: v0.21.5-security.1
   UPSTREAM_SOURCE: https://github.com/NousResearch/hermes-agent
-  UPSTREAM_REVISION: 345cd2b057a452236de401d3534b8502a7465e8d
-  SECURITY_BASELINE_REVISION: 51e2cb22b07f302827fdf3fd82f1d8c710aedfe3
-  SECURITY_PATCH_SHA256: 4325356290ac7d4f1062d86facc9b1634e0770270823e89b87dd1863bd2e01cc
+  UPSTREAM_REVISION: f97608f178d1ffeca59860195ab7da295f7c8e5f
+  SECURITY_PATCH_SHA256: 70727d75c2c2bf99f8e9d16c98f095a5b28bdc589356463e6eddac6a5ad7eacf
 
 jobs:
   build-test:
@@ -40,7 +39,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: NousResearch/hermes-agent
-          ref: 345cd2b057a452236de401d3534b8502a7465e8d
+          ref: f97608f178d1ffeca59860195ab7da295f7c8e5f
           path: hermes-agent
           fetch-depth: 1
           persist-credentials: false
@@ -67,33 +66,42 @@ jobs:
           platforms: linux/amd64
           load: true
           push: false
-          tags: hermes-v0213-security:test
+          tags: hermes-v0215-security:test
           build-args: |
             HERMES_GIT_SHA=${{ env.UPSTREAM_REVISION }}
           labels: |
-            org.opencontainers.image.source=https://github.com/wmorin/hermes-v021-security-image
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+            io.wmorin.hermes.builder-repository=https://github.com/wmorin/hermes-v021-security-image
             io.wmorin.hermes.upstream-source=${{ env.UPSTREAM_SOURCE }}
             io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
-            io.wmorin.hermes.security-baseline-revision=${{ env.SECURITY_BASELINE_REVISION }}
             io.wmorin.hermes.security-patch-sha256=${{ env.SECURITY_PATCH_SHA256 }}
-          cache-from: type=gha,scope=hermes-v0213-security-amd64
-          cache-to: type=gha,mode=max,scope=hermes-v0213-security-amd64
+          cache-from: type=gha,scope=hermes-v0215-security-amd64
+          cache-to: type=gha,mode=max,scope=hermes-v0215-security-amd64
 
       - name: Smoke-test image identity and patched packages
         run: |
           set -euo pipefail
           docker run --rm --entrypoint /opt/hermes/.venv/bin/hermes \
-            hermes-v0213-security:test --version | grep -F 'Hermes Agent v0.21.3 (2026.9.14)'
-          docker run --rm --entrypoint sh hermes-v0213-security:test -c \
-            'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 vitest@4.1.11 @vitest/mocker@4.1.11 colord@2.9.4 --all'
-          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
-          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
-          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
-          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
-          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-baseline-revision"}}')" = "${SECURITY_BASELINE_REVISION}"
-          test "$(docker image inspect hermes-v0213-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
+            hermes-v0215-security:test --version | grep -F 'Hermes Agent v0.21.5 (2026.9.24)'
+          docker run --rm --entrypoint sh hermes-v0215-security:test -c \
+            'cd /opt/hermes && npm ls vitest@4.1.11 @vitest/mocker@4.1.11 --all'
+          docker run --rm --entrypoint /opt/hermes/.venv/bin/python hermes-v0215-security:test -c \
+            'import importlib.metadata as m; expected={"anyio":"4.14.2","httpcore2":"2.12.0","httpx2":"2.12.0"}; actual={name:m.version(name) for name in expected}; print(actual); assert actual == expected'
+          test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "io.wmorin.hermes.builder-repository"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
+          test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
+          test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
+          test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
+          test "$(docker image inspect hermes-v0215-security:test --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
+
+      - name: Reject fixable HIGH or CRITICAL findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: hermes-v0215-security:test
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
 
   publish:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -116,7 +124,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: NousResearch/hermes-agent
-          ref: 345cd2b057a452236de401d3534b8502a7465e8d
+          ref: f97608f178d1ffeca59860195ab7da295f7c8e5f
           path: hermes-agent
           fetch-depth: 1
           persist-credentials: false
@@ -145,28 +153,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      - name: Refuse to overwrite a public package
+      - name: Require a pre-created private destination package
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          api_error_file="$(mktemp)"
-          trap 'unlink "${api_error_file}" 2>/dev/null || true' EXIT
-
-          set +e
           package_visibility="$(
             gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" \
-              --jq .visibility 2>"${api_error_file}"
+              --jq .visibility
           )"
-          result_status=$?
-          set -e
-
-          if [ "${result_status}" -eq 0 ]; then
-            test "${package_visibility}" = private
-          elif ! grep -qF '(HTTP 404)' "${api_error_file}"; then
-            echo 'Could not prove that the destination package is absent or private' >&2
-            exit 1
-          fi
+          test "${package_visibility}" = private
 
       - name: Build and publish private final-package linux/amd64 candidate
         id: build
@@ -180,44 +176,77 @@ jobs:
           build-args: |
             HERMES_GIT_SHA=${{ env.UPSTREAM_REVISION }}
           labels: |
-            org.opencontainers.image.source=https://github.com/wmorin/hermes-v021-security-image
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+            io.wmorin.hermes.builder-repository=https://github.com/wmorin/hermes-v021-security-image
             io.wmorin.hermes.upstream-source=${{ env.UPSTREAM_SOURCE }}
             io.wmorin.hermes.upstream-revision=${{ env.UPSTREAM_REVISION }}
-            io.wmorin.hermes.security-baseline-revision=${{ env.SECURITY_BASELINE_REVISION }}
             io.wmorin.hermes.security-patch-sha256=${{ env.SECURITY_PATCH_SHA256 }}
-          cache-from: type=gha,scope=hermes-v0213-security-amd64
-          cache-to: type=gha,mode=max,scope=hermes-v0213-security-amd64
-          provenance: mode=min
+          cache-from: type=gha,scope=hermes-v0215-security-amd64
+          cache-to: type=gha,mode=max,scope=hermes-v0215-security-amd64
+          provenance: mode=max
           sbom: true
 
-      - name: Verify final package remains private
+      - name: Verify package visibility and anonymous-pull behavior
         env:
           GH_TOKEN: ${{ github.token }}
+          PUBLISHED_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
-          test "$(gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" --jq .visibility)" = private
+          package_visibility="$(gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" --jq .visibility)"
+          case "${package_visibility}" in
+            private|public) ;;
+            *) echo "Unexpected package visibility: ${package_visibility}" >&2; exit 1 ;;
+          esac
+          anonymous_token="$({
+            curl --fail --silent --show-error \
+              "https://ghcr.io/token?service=ghcr.io&scope=repository:wmorin/${PACKAGE_NAME}:pull" || true
+          } | jq -r '.token // empty')"
+          anonymous_pull=denied
+          if test -n "${anonymous_token}" && curl --fail --silent --show-error \
+              -H "Authorization: Bearer ${anonymous_token}" \
+              -H 'Accept: application/vnd.oci.image.index.v1+json' \
+              "https://ghcr.io/v2/wmorin/${PACKAGE_NAME}/manifests/${PUBLISHED_DIGEST}" \
+              >/dev/null 2>&1; then
+            anonymous_pull=allowed
+          fi
+          if test "${package_visibility}:${anonymous_pull}" != private:denied && \
+             test "${package_visibility}:${anonymous_pull}" != public:allowed; then
+            echo "Visibility/pull mismatch: ${package_visibility}:${anonymous_pull}" >&2
+            exit 1
+          fi
+          printf 'package_visibility=%s anonymous_pull=%s\n' \
+            "${package_visibility}" "${anonymous_pull}"
 
-      - name: Verify the exact private digest
+      - name: Verify the exact published digest
         env:
           PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
           docker pull "${PUBLISHED_IMAGE}"
           docker run --rm --entrypoint /opt/hermes/.venv/bin/hermes \
-            "${PUBLISHED_IMAGE}" --version | grep -F 'Hermes Agent v0.21.3 (2026.9.14)'
+            "${PUBLISHED_IMAGE}" --version | grep -F 'Hermes Agent v0.21.5 (2026.9.24)'
           docker run --rm --entrypoint sh "${PUBLISHED_IMAGE}" -c \
-            'cd /opt/hermes && npm ls browserslist@4.28.8 sanitize-html@2.17.7 vitest@4.1.11 @vitest/mocker@4.1.11 colord@2.9.4 --all'
-          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.source"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
+            'cd /opt/hermes && npm ls vitest@4.1.11 @vitest/mocker@4.1.11 --all'
+          docker run --rm --entrypoint /opt/hermes/.venv/bin/python "${PUBLISHED_IMAGE}" -c \
+            'import importlib.metadata as m; expected={"anyio":"4.14.2","httpcore2":"2.12.0","httpx2":"2.12.0"}; actual={name:m.version(name) for name in expected}; print(actual); assert actual == expected'
+          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.builder-repository"}}')" = 'https://github.com/wmorin/hermes-v021-security-image'
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "${GITHUB_SHA}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "${IMAGE_VERSION}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.upstream-source"}}')" = "${UPSTREAM_SOURCE}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.upstream-revision"}}')" = "${UPSTREAM_REVISION}"
-          test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-baseline-revision"}}')" = "${SECURITY_BASELINE_REVISION}"
           test "$(docker image inspect "${PUBLISHED_IMAGE}" --format '{{index .Config.Labels "io.wmorin.hermes.security-patch-sha256"}}')" = "${SECURITY_PATCH_SHA256}"
 
-      - name: Verify minimal provenance and SBOM
+      - name: Reject fixable HIGH or CRITICAL findings in published digest
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Verify provenance and SBOM
         env:
           PUBLISHED_IMAGE: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -309,22 +338,20 @@ jobs:
               }]
             ' "${statement_file}" >/dev/null
           jq -e '[.. | objects | select(
-            .name? == "browserslist" and .versionInfo? == "4.28.8"
-          )] | length > 0' "${sbom_file}" >/dev/null
-          jq -e '[.. | objects | select(
-            .name? == "sanitize-html" and .versionInfo? == "2.17.7"
-          )] | length > 0' "${sbom_file}" >/dev/null
-          jq -e '[.. | objects | select(
             .name? == "vitest" and .versionInfo? == "4.1.11"
           )] | length > 0' "${sbom_file}" >/dev/null
           jq -e '[.. | objects | select(
             .name? == "@vitest/mocker" and .versionInfo? == "4.1.11"
           )] | length > 0' "${sbom_file}" >/dev/null
-          jq -e '[.. | objects | select(
-            .name? == "colord" and .versionInfo? == "2.9.4"
-          )] | length > 0' "${sbom_file}" >/dev/null
+          for package_spec in anyio:4.14.2 h2:4.4.1 hpack:4.2.0 httpcore2:2.12.0 httpx2:2.12.0; do
+            package_name="${package_spec%%:*}"
+            package_version="${package_spec#*:}"
+            jq -e --arg name "${package_name}" --arg version "${package_version}" \
+              '[.. | objects | select(.name? == $name and .versionInfo? == $version)] | length > 0' \
+              "${sbom_file}" >/dev/null
+          done
 
-      - name: Report verified private identity
+      - name: Report verified identity
         run: |
           printf 'image=%s@%s\n' "${IMAGE_NAME}" "${{ steps.build.outputs.digest }}"
           printf 'discovery_tag=%s:build-%s\n' "${IMAGE_NAME}" "${GITHUB_SHA}"
