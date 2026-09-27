@@ -211,26 +211,44 @@ jobs:
           PUBLISHED_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
+          token_file="$(mktemp)"
+          header_file="$(mktemp)"
+          trap 'unlink "${token_file}" "${header_file}" 2>/dev/null || true' EXIT
           package_visibility="$(gh api "/users/wmorin/packages/container/${PACKAGE_NAME}" --jq .visibility)"
           test "${package_visibility}" = private
 
-          anonymous_token="$(
-            curl --fail --silent --show-error \
-              "https://ghcr.io/token?service=ghcr.io&scope=repository:wmorin/${PACKAGE_NAME}:pull" \
-              | jq -er .token
-          )"
-          manifest_status="$(
+          token_status="$(
             curl --silent --show-error \
-              --output /dev/null \
+              --output "${token_file}" \
               --write-out '%{http_code}' \
-              -H "Authorization: Bearer ${anonymous_token}" \
-              -H 'Accept: application/vnd.oci.image.index.v1+json' \
-              "https://ghcr.io/v2/wmorin/${PACKAGE_NAME}/manifests/${PUBLISHED_DIGEST}"
+              "https://ghcr.io/token?service=ghcr.io&scope=repository:wmorin/${PACKAGE_NAME}:pull"
           )"
-          case "${manifest_status}" in
-            401|403) ;;
+          case "${token_status}" in
+            401|403)
+              anonymous_denial="token-${token_status}"
+              ;;
+            200)
+              anonymous_token="$(jq -er .token "${token_file}")"
+              chmod 600 "${header_file}"
+              printf 'Authorization: Bearer %s\n' "${anonymous_token}" >"${header_file}"
+              manifest_status="$(
+                curl --silent --show-error \
+                  --output /dev/null \
+                  --write-out '%{http_code}' \
+                  -H "@${header_file}" \
+                  -H 'Accept: application/vnd.oci.image.index.v1+json' \
+                  "https://ghcr.io/v2/wmorin/${PACKAGE_NAME}/manifests/${PUBLISHED_DIGEST}"
+              )"
+              case "${manifest_status}" in
+                401|403) anonymous_denial="manifest-${manifest_status}" ;;
+                *)
+                  echo "Anonymous manifest request returned HTTP ${manifest_status}, expected 401 or 403" >&2
+                  exit 1
+                  ;;
+              esac
+              ;;
             *)
-              echo "Anonymous manifest request returned HTTP ${manifest_status}, expected 401 or 403" >&2
+              echo "Anonymous token request returned HTTP ${token_status}, expected 200, 401, or 403" >&2
               exit 1
               ;;
           esac
@@ -238,7 +256,7 @@ jobs:
             echo 'Package visibility changed during the anonymous-pull check' >&2
             exit 1
           fi
-          printf 'package_visibility=private anonymous_manifest_status=%s\n' "${manifest_status}"
+          printf 'package_visibility=private anonymous_registry_denial=%s\n' "${anonymous_denial}"
 
       - name: Verify the exact published digest
         env:
