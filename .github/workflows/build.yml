@@ -302,7 +302,9 @@ jobs:
           statement_file="$(mktemp)"
           credentials_file="$(mktemp)"
           header_file="$(mktemp)"
-          trap 'unlink "${provenance_file}" "${sbom_file}" "${email_file}" "${index_file}" "${attestation_file}" "${statement_file}" "${credentials_file}" "${header_file}" 2>/dev/null || true' EXIT
+          response_headers_file="$(mktemp)"
+          redirect_config_file="$(mktemp)"
+          trap 'unlink "${provenance_file}" "${sbom_file}" "${email_file}" "${index_file}" "${attestation_file}" "${statement_file}" "${credentials_file}" "${header_file}" "${response_headers_file}" "${redirect_config_file}" 2>/dev/null || true' EXIT
 
           docker buildx imagetools inspect "${PUBLISHED_IMAGE}" \
             --format '{{json .Provenance}}' >"${provenance_file}"
@@ -366,10 +368,52 @@ jobs:
           )"
           chmod 600 "${header_file}"
           printf 'Authorization: Bearer %s\n' "${registry_token}" >"${header_file}"
-          curl --fail --silent --show-error \
+          blob_status="$(curl --silent --show-error \
+            --dump-header "${response_headers_file}" \
+            --output /dev/null \
+            --write-out '%{http_code}' \
             -H "@${header_file}" \
-            "https://ghcr.io/v2/wmorin/${PACKAGE_NAME}/blobs/${provenance_digest}" \
-            >"${statement_file}"
+            "https://ghcr.io/v2/wmorin/${PACKAGE_NAME}/blobs/${provenance_digest}")"
+          redirect_url="$(python3 - "${blob_status}" "${response_headers_file}" <<'PY'
+          import sys
+          from urllib.parse import urlsplit
+
+          status, path = sys.argv[1:]
+          locations = []
+          with open(path, encoding="iso-8859-1") as source:
+              for line in source:
+                  if line.lower().startswith("location:"):
+                      locations.append(line.split(":", 1)[1].strip())
+          assert status == "307", status
+          assert len(locations) == 1, len(locations)
+          parsed = urlsplit(locations[0])
+          assert parsed.scheme == "https"
+          assert parsed.hostname == "pkg-containers.githubusercontent.com"
+          assert parsed.username is None and parsed.password is None
+          assert parsed.port in (None, 443)
+          assert parsed.path.startswith("/") and parsed.query
+          assert not any(character.isspace() for character in locations[0])
+          assert '"' not in locations[0] and "\\" not in locations[0]
+          print(locations[0])
+          PY
+          )"
+          chmod 600 "${redirect_config_file}"
+          printf '%s' "${redirect_url}" | python3 -c '
+          import pathlib
+          import sys
+
+          url = sys.stdin.read()
+          assert url.startswith("https://pkg-containers.githubusercontent.com/")
+          pathlib.Path(sys.argv[1]).write_text(f"url = {url}\n", encoding="utf-8")
+          ' "${redirect_config_file}"
+          unset redirect_url
+          signed_blob_status="$(curl --silent --show-error \
+            --config "${redirect_config_file}" \
+            --output "${statement_file}" \
+            --write-out '%{http_code}')"
+          test "${signed_blob_status}" = 200
+          test -s "${statement_file}"
+          jq -e . "${statement_file}" >/dev/null
           jq -e \
             --arg subject_name "pkg:docker/${IMAGE_NAME}@build-${GITHUB_SHA}?platform=linux%2Famd64" \
             --arg subject_digest "${platform_digest#sha256:}" \
