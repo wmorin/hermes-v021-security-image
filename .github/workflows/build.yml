@@ -384,15 +384,18 @@ jobs:
               .. | objects | .externalRefs[]?
               | select(.referenceType == "purl")
               | .referenceLocator
-            ] as $purls
+            ] | unique as $purls
             | [
-                "pkg:npm/vitest@4.1.11",
-                "pkg:npm/%40vitest/mocker@4.1.11",
-                "pkg:pypi/anyio@4.14.2",
-                "pkg:pypi/httpcore2@2.12.0",
-                "pkg:pypi/httpx2@2.12.0"
-              ] as $expected
-            | all($expected[]; . as $package | $purls | index($package) != null)
+                {prefix: "pkg:npm/vitest@", purl: "pkg:npm/vitest@4.1.11"},
+                {prefix: "pkg:npm/%40vitest/mocker@", purl: "pkg:npm/%40vitest/mocker@4.1.11"},
+                {prefix: "pkg:pypi/anyio@", purl: "pkg:pypi/anyio@4.14.2"},
+                {prefix: "pkg:pypi/httpcore2@", purl: "pkg:pypi/httpcore2@2.12.0"},
+                {prefix: "pkg:pypi/httpx2@", purl: "pkg:pypi/httpx2@2.12.0"}
+              ] as $packages
+            | all($packages[];
+                . as $package
+                | [$purls[] | select(startswith($package.prefix))] == [$package.purl]
+              )
               and all($purls[];
                 (startswith("pkg:pypi/h2@") or startswith("pkg:pypi/hpack@")) | not
               )
