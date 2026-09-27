@@ -379,14 +379,27 @@ jobs:
                 digest: {sha256: $subject_digest}
               }]
             ' "${statement_file}" >/dev/null
-          for package_spec in vitest:4.1.11 @vitest/mocker:4.1.11 anyio:4.14.2 h2:4.4.1 hpack:4.2.0 httpcore2:2.12.0 httpx2:2.12.0; do
-            package_name="${package_spec%%:*}"
-            package_version="${package_spec#*:}"
-            jq -e --arg name "${package_name}" --arg version "${package_version}" \
-              '[.. | objects | select(.name? == $name and (.versionInfo? | type) == "string") | .versionInfo] as $versions
-               | ($versions | length) > 0 and all($versions[]; . == $version)' \
-              "${sbom_file}" >/dev/null
-          done
+          jq -e '
+            [
+              .. | objects | .externalRefs[]?
+              | select(.referenceType == "purl")
+              | .referenceLocator
+            ] | unique as $purls
+            | [
+                {prefix: "pkg:npm/vitest@", purl: "pkg:npm/vitest@4.1.11"},
+                {prefix: "pkg:npm/%40vitest/mocker@", purl: "pkg:npm/%40vitest/mocker@4.1.11"},
+                {prefix: "pkg:pypi/anyio@", purl: "pkg:pypi/anyio@4.14.2"},
+                {prefix: "pkg:pypi/httpcore2@", purl: "pkg:pypi/httpcore2@2.12.0"},
+                {prefix: "pkg:pypi/httpx2@", purl: "pkg:pypi/httpx2@2.12.0"}
+              ] as $packages
+            | all($packages[];
+                . as $package
+                | [$purls[] | select(startswith($package.prefix))] == [$package.purl]
+              )
+              and all($purls[];
+                (startswith("pkg:pypi/h2@") or startswith("pkg:pypi/hpack@")) | not
+              )
+          ' "${sbom_file}" >/dev/null
 
       - name: Remove the unverified bootstrap placeholder
         env:
