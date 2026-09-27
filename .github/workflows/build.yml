@@ -366,10 +366,12 @@ jobs:
           )"
           chmod 600 "${header_file}"
           printf 'Authorization: Bearer %s\n' "${registry_token}" >"${header_file}"
-          curl --fail --silent --show-error \
+          curl --fail --location --silent --show-error \
             -H "@${header_file}" \
             "https://ghcr.io/v2/wmorin/${PACKAGE_NAME}/blobs/${provenance_digest}" \
             >"${statement_file}"
+          test -s "${statement_file}"
+          jq -e . "${statement_file}" >/dev/null
           jq -e \
             --arg subject_name "pkg:docker/${IMAGE_NAME}@build-${GITHUB_SHA}?platform=linux%2Famd64" \
             --arg subject_digest "${platform_digest#sha256:}" \
